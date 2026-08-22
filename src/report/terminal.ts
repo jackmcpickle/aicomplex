@@ -2,6 +2,7 @@ import type { AnalyzerResult, Pillar } from "../analyze/types.js";
 import { PILLARS, scoredFiles } from "../analyze/types.js";
 import { FILE_ROLES, SCORED_ROLES } from "../discover/role.js";
 import type { CodeIndex } from "../index/types.js";
+import type { SlopScore } from "../score/score.js";
 
 const PILLAR_TITLES: Record<Pillar, string> = {
   findability: "Findability — can an agent locate things?",
@@ -23,6 +24,7 @@ export type ReportOptions = {
 export function renderTerminalReport(
   index: CodeIndex,
   results: AnalyzerResult[],
+  score: SlopScore,
   options: ReportOptions = {},
 ): string {
   const { detail = 3 } = options;
@@ -50,17 +52,22 @@ export function renderTerminalReport(
     );
   }
   lines.push("");
+  lines.push(...renderScore(score));
+
+  const pillarScores = new Map(score.pillars.map((entry) => [entry.pillar, entry.score]));
 
   for (const pillar of PILLARS) {
     const forPillar = results.filter((result) => result.pillar === pillar);
     if (forPillar.length === 0) continue;
 
-    lines.push(`  ${bold(PILLAR_TITLES[pillar])}`);
+    const pillarScore = pillarScores.get(pillar);
+    const suffix = pillarScore === undefined ? "" : dim(`  ${pillarScore.toFixed(0)}/100`);
+    lines.push(`  ${bold(PILLAR_TITLES[pillar])}${suffix}`);
     lines.push("");
 
     for (const result of forPillar) {
       lines.push(
-        `    ${result.metric.toFixed(1).padStart(5)}  ${result.analyzer.padEnd(24)} ${dim(result.unit)}`,
+        `    ${formatMetric(result.metric).padStart(6)}  ${result.analyzer.padEnd(24)} ${dim(result.unit)}`,
       );
       for (const finding of result.findings.slice(0, detail)) {
         lines.push(dim(`           ${finding.message}`));
@@ -79,13 +86,44 @@ export function renderTerminalReport(
     lines.push("");
   }
 
-  // Deliberate: a single headline number is meaningless until the metrics are
-  // calibrated against a reference corpus. Reporting one now would be an
-  // opinion dressed as data.
-  lines.push(dim("  Metrics are uncalibrated — compare repos, not the absolute numbers."));
+  // The thresholds behind the score are reasoned, not derived from a corpus.
+  // Saying so is the difference between a useful comparison and a number
+  // people mistake for a measurement.
+  lines.push(dim("  Thresholds are reasoned, not corpus-derived — best used to compare repos"));
+  lines.push(dim("  and to track one repo over time. See src/score/anchors.ts."));
   lines.push("");
 
   return lines.join("\n");
+}
+
+/** The headline block: score, grade, and how much of it is size. */
+function renderScore(score: SlopScore): string[] {
+  const bar = renderBar(score.score);
+  const sign = score.size.adjustment >= 0 ? "+" : "";
+
+  return [
+    `  ${bold(`SLOP ${score.score.toFixed(0)}/100`)}  ${bold(score.grade)}   ${bar}`,
+    dim(
+      `  ${score.base.toFixed(0)} from metrics, ${sign}${score.size.adjustment.toFixed(0)} for size ` +
+        `(${formatLoc(score.size.loc)} lines across ${score.size.files} files)`,
+    ),
+    "",
+  ];
+}
+
+function renderBar(score: number): string {
+  const width = 24;
+  const filled = Math.round((score / 100) * width);
+  return dim(`${"█".repeat(filled)}${"·".repeat(width - filled)}`);
+}
+
+/** Metrics are percentages, rates, or line counts, so precision has to vary. */
+function formatMetric(value: number): string {
+  return value >= 100 ? value.toFixed(0) : value.toFixed(1);
+}
+
+function formatLoc(loc: number): string {
+  return loc >= 1000 ? `${(loc / 1000).toFixed(1)}k` : `${loc}`;
 }
 
 function countByRole(index: CodeIndex, role: string): number {

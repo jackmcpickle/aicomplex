@@ -21,6 +21,42 @@ guess whether a file was model-written, which is the wrong question. GitClear
 measures authoring behaviour from git history, as SaaS. Nothing scores the
 **current snapshot** for **agent navigability**. That's what aicc does.
 
+## The Slop Score
+
+One number, 0–100, **higher is worse**, plus a grade.
+
+Ten metrics across four pillars are each mapped onto 0–100 against a documented
+"good" and "bad" anchor, averaged per pillar, then averaged across pillars.
+
+**Size counts twice**, deliberately:
+
+- The same 20% duplication costs more in a 500k-line codebase than a 2k-line
+  one, because an agent's chance of ever seeing enough of it to notice drops as
+  the codebase grows. So problems are weighted from 0.85x up to 1.15x with scale.
+- Scale is a cost by itself. A million-line codebase with no measurable defects
+  is still harder to work in, so up to 10 points of burden are added on size alone.
+
+The report shows how much of the score came from each.
+
+```
+  SLOP 72/100  F   █████████████████·······
+  67 from metrics, +5 for size (32.8k lines across 155 files)
+```
+
+Measured across a small corpus:
+
+| repo | score | | notes |
+|---|---|---|---|
+| aicc | 5 | A | small, and it eats its own cooking |
+| cobra | 24 | B | large files, some duplication |
+| vite | 38 | C | big, cyclic, but low duplication |
+| flask | 43 | C | 83% of files in an import cycle |
+| zod | 72 | F | 1717-line median file, 37% duplicated bodies |
+
+The anchors are reasoned, not corpus-derived — see `src/score/anchors.ts`, where
+each one carries its justification. Use the score to compare repos and to track
+one repo over time, not as an absolute measurement.
+
 ## What it measures
 
 Four pillars. Every metric is normalised so **higher is worse**.
@@ -35,7 +71,7 @@ Four pillars. Every metric is normalised so **higher is worse**.
 - `cross-file-connectivity` — share of internal calls that never leave their file
 
 **Context cost** — how much must it read?
-- `god-files` — share of lines in files too large to read in one pass
+- `god-files` — size of the file a randomly chosen line lives in
 - `function-complexity` — share of functions too branchy or too deeply nested
 
 **Slop signals** — the AI tells
@@ -79,10 +115,13 @@ native toolchain needed). Adding a language is one `LanguagePack`.
 
 ## Status
 
-Early. The metrics work and are tested, but there is **no composite Slop Score
-yet** — a single number is meaningless until the metrics are calibrated against
-a reference corpus of known-good and known-sloppy repos. Reporting one now
-would be an opinion dressed as data.
+Early but usable. The metrics work, are tested, and separate real codebases.
+
+The main limitation is that the score's thresholds are argued for rather than
+derived from a large corpus. Each one is documented with its reasoning in
+`src/score/anchors.ts` so it can be disagreed with. Next up: a proper
+calibration corpus, git churn, and an optional LLM pass for the judgements
+static analysis cannot make.
 
 ## Development
 

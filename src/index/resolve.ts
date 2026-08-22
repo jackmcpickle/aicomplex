@@ -64,10 +64,19 @@ function resolvePython(
     moduleParts = specifier.split(".").filter(Boolean);
   }
 
-  const stem = posixJoin(baseDir, moduleParts.join("/"));
+  const module = moduleParts.join("/");
 
-  for (const candidate of [`${stem}.py`, `${stem}/__init__.py`]) {
-    if (knownFiles.has(candidate)) return candidate;
+  // An absolute import names a package, which may sit under a source root
+  // rather than at the repo root. Without this, `from flask import x` inside a
+  // `src/flask/` layout resolves to nothing and the package looks like it has
+  // no internal structure at all.
+  const roots = leadingDots > 0 ? [baseDir] : ["", "src", "lib", "app"];
+
+  for (const root of roots) {
+    const stem = posixJoin(root, module);
+    for (const candidate of [`${stem}.py`, `${stem}/__init__.py`]) {
+      if (knownFiles.has(candidate)) return candidate;
+    }
   }
 
   return null;

@@ -4,6 +4,7 @@ import { runAnalyzers } from "./analyze/index.js";
 import { walk } from "./discover/walk.js";
 import { buildIndex } from "./index/build.js";
 import { renderTerminalReport } from "./report/terminal.js";
+import { scoreIndex } from "./score/score.js";
 
 const program = new Command();
 
@@ -27,12 +28,18 @@ program
       const files = await walk(target, options.exclude ? { exclude: options.exclude } : {});
       const index = await buildIndex(target, files);
       const results = runAnalyzers(index);
+      const score = scoreIndex(index, results);
 
       if (options.json) {
         console.log(
           JSON.stringify(
             {
               root: index.root,
+              slopScore: score.score,
+              grade: score.grade,
+              base: score.base,
+              size: score.size,
+              pillars: score.pillars,
               files: index.files.size,
               symbols: index.symbols.size,
               imports: index.imports.length,
@@ -47,7 +54,7 @@ program
         return;
       }
 
-      process.stdout.write(renderTerminalReport(index, results, { detail: options.detail }));
+      process.stdout.write(renderTerminalReport(index, results, score, { detail: options.detail }));
     },
   );
 

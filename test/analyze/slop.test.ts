@@ -173,29 +173,47 @@ describe("dead-exports", () => {
 });
 
 describe("god-files", () => {
-  it("scores zero when every file is a readable size", async () => {
-    const index = await indexFixture(
-      { "src/a.ts": "export const a = 1;\n".repeat(50) },
-      onTestFinished,
-    );
+  const lines = (n: number, prefix: string) =>
+    Array.from({ length: n }, (_, i) => `export const ${prefix}${i} = ${i};`).join("\n");
+
+  it("reports the size of a small codebase's files", async () => {
+    const index = await indexFixture({ "src/a.ts": lines(50, "a") }, onTestFinished);
+
+    expect(godFiles.run(index).metric).toBe(50);
+  });
+
+  it("reports zero when there is nothing to measure", async () => {
+    const index = await indexFixture({ "README.md": "# nothing" }, onTestFinished);
 
     expect(godFiles.run(index).metric).toBe(0);
   });
 
-  it("measures the share of lines living in oversized files", async () => {
+  it("weights by lines, so one big file outranks many small ones", async () => {
     const index = await indexFixture(
       {
-        "src/big.ts": Array.from({ length: 600 }, (_, i) => `export const v${i} = ${i};`).join("\n"),
-        "src/small.ts": Array.from({ length: 200 }, (_, i) => `export const s${i} = ${i};`).join("\n"),
+        "src/big.ts": lines(600, "v"),
+        ...Object.fromEntries(
+          Array.from({ length: 8 }, (_, i) => [`src/small${i}.ts`, lines(25, `s${i}_`)]),
+        ),
       },
+      onTestFinished,
+    );
+
+    // 800 lines total; the 400th lives in big.ts, not in one of the small ones.
+    expect(godFiles.run(index).metric).toBe(600);
+  });
+
+  it("names the largest files, with a token estimate", async () => {
+    const index = await indexFixture(
+      { "src/big.ts": lines(600, "v"), "src/small.ts": lines(20, "s") },
       onTestFinished,
     );
 
     const result = godFiles.run(index);
 
-    expect(result.metric).toBeCloseTo(75, 0); // 600 of 800 lines.
     expect(result.findings[0]?.file).toBe("src/big.ts");
     expect(result.findings[0]?.message).toContain("tokens to read");
+    expect(result.findings.map((f) => f.file)).not.toContain("src/small.ts");
   });
 });
 
