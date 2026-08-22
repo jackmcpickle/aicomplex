@@ -1,0 +1,50 @@
+{
+  "name": "aicc",
+  "version": "0.0.1",
+  "description": "Measure how much slop a codebase is carrying, from the point of view of an AI agent working in it.",
+  "type": "module",
+  "bin": {
+    "aicc": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "grammars"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "code-quality",
+    "ai-slop",
+    "complexity",
+    "static-analysis",
+    "tree-sitter",
+    "agents"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^14.0.1",
+    "ignore": "^7.0.5",
+    "tinyglobby": "^0.2.15",
+    "tree-sitter-go": "^0.25.0",
+    "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-python": "^0.25.0",
+    "tree-sitter-typescript": "^0.23.2",
+    "web-tree-sitter": "^0.26.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.7",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

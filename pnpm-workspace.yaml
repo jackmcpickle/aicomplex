@@ -1,0 +1,8 @@
+allowBuilds:
+  esbuild: true
+  # Grammar packages ship a prebuilt .wasm, which is all aicc loads. Skipping
+  # their node-gyp builds keeps install fast and free of a native toolchain.
+  tree-sitter-go: false
+  tree-sitter-javascript: false
+  tree-sitter-python: false
+  tree-sitter-typescript: false

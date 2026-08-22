@@ -1,0 +1,294 @@
+import { describe, expect, it, onTestFinished } from "vitest";
+import { barrelDepth } from "../../src/analyze/barrel-depth.js";
+import { crossFileConnectivity } from "../../src/analyze/cross-file-connectivity.js";
+import { importCycles } from "../../src/analyze/import-cycles.js";
+import { orphanFiles } from "../../src/analyze/orphan-files.js";
+import { symbolCollision } from "../../src/analyze/symbol-collision.js";
+import { runAnalyzers } from "../../src/analyze/index.js";
+import { indexFixture } from "../helpers/index-fixture.js";
+
+describe("symbol-collision", () => {
+  it("scores zero when every name is unique", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.ts": "export function alpha() {}",
+        "src/b.ts": "export function beta() {}",
+      },
+      onTestFinished,
+    );
+
+    expect(symbolCollision.run(index).metric).toBe(0);
+  });
+
+  it("flags a name defined in several files", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.ts": "export function validate() {}",
+        "src/b.ts": "export function validate() {}",
+        "src/c.ts": "export function validate() {}",
+        "src/d.ts": "export function unique() {}",
+      },
+      onTestFinished,
+    );
+
+    const result = symbolCollision.run(index);
+
+    expect(result.metric).toBe(75); // 3 of 4 definitions are ambiguous.
+    expect(result.findings[0]?.message).toBe('"validate" is defined 3 times across 3 files');
+  });
+
+  it("ignores collisions that only occur in tests", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.test.ts": "function setup() {}",
+        "src/b.test.ts": "function setup() {}",
+        "src/c.ts": "export function real() {}",
+      },
+      onTestFinished,
+    );
+
+    expect(symbolCollision.run(index).metric).toBe(0);
+  });
+});
+
+describe("orphan-files", () => {
+  it("scores zero when everything is reachable", async () => {
+    const index = await indexFixture(
+      {
+        "src/index.ts": "import { used } from './used.js';\nexport { used };",
+        "src/used.ts": "export const used = 1;",
+      },
+      onTestFinished,
+    );
+
+    expect(orphanFiles.run(index).metric).toBe(0);
+  });
+
+  it("flags a file nothing imports", async () => {
+    const index = await indexFixture(
+      {
+        "src/index.ts": "import { used } from './used.js';\nexport { used };",
+        "src/used.ts": "export const used = 1;",
+        "src/leftover.ts": "export const leftover = 1;\nexport const another = 2;",
+      },
+      onTestFinished,
+    );
+
+    const result = orphanFiles.run(index);
+
+    expect(result.metric).toBe(50); // leftover.ts of {used.ts, leftover.ts}; index.ts is an entrypoint.
+    expect(result.findings[0]?.file).toBe("src/leftover.ts");
+  });
+
+  it("does not count entrypoints or tests as orphans", async () => {
+    const index = await indexFixture(
+      {
+        "src/main.ts": "export const main = 1;",
+        "src/thing.test.ts": "it('works', () => {});",
+        "scripts/seed.ts": "export const seed = 1;",
+        "cli.ts": "export const cli = 1;",
+      },
+      onTestFinished,
+    );
+
+    expect(orphanFiles.run(index).findings).toEqual([]);
+  });
+
+  it("does not judge Go, where package files need no imports", async () => {
+    const index = await indexFixture(
+      {
+        "pkg/helper.go": "package pkg\n\nfunc Helper() {}\n",
+        "pkg/other.go": "package pkg\n\nfunc Other() {}\n",
+      },
+      onTestFinished,
+    );
+
+    expect(orphanFiles.run(index).metric).toBe(0);
+  });
+});
+
+describe("barrel-depth", () => {
+  it("scores zero when imports point straight at definitions", async () => {
+    const index = await indexFixture(
+      {
+        "src/util.ts": "export const helper = () => 1;",
+        "src/main.ts": "import { helper } from './util.js';\nexport const main = () => helper();",
+      },
+      onTestFinished,
+    );
+
+    expect(barrelDepth.run(index).metric).toBe(0);
+  });
+
+  it("flags imports routed through a re-export barrel", async () => {
+    const index = await indexFixture(
+      {
+        "src/lib/util.ts": "export const helper = () => 1;",
+        "src/lib/index.ts": "export { helper } from './util.js';",
+        "src/main.ts":
+          "import { helper } from './lib/index.js';\nexport const main = () => helper();",
+      },
+      onTestFinished,
+    );
+
+    const result = barrelDepth.run(index);
+
+    expect(result.metric).toBe(50); // 1 of 2 internal edges lands on the barrel.
+    expect(result.findings[0]?.file).toBe("src/lib/index.ts");
+  });
+
+  it("reports how deep a chain of barrels runs", async () => {
+    const index = await indexFixture(
+      {
+        "src/lib/deep/util.ts": "export const helper = () => 1;",
+        "src/lib/deep/index.ts": "export { helper } from './util.js';",
+        "src/lib/index.ts": "export { helper } from './deep/index.js';",
+        "src/main.ts":
+          "import { helper } from './lib/index.js';\nexport const main = () => helper();",
+      },
+      onTestFinished,
+    );
+
+    expect(barrelDepth.run(index).findings[0]?.message).toContain("2 re-exports deep");
+  });
+});
+
+describe("import-cycles", () => {
+  it("scores zero on an acyclic graph", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.ts": "import { b } from './b.js';\nexport const a = () => b();",
+        "src/b.ts": "export const b = () => 1;",
+      },
+      onTestFinished,
+    );
+
+    expect(importCycles.run(index).metric).toBe(0);
+  });
+
+  it("flags a two-file cycle", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.ts": "import { b } from './b.js';\nexport const a = () => b();",
+        "src/b.ts": "import { a } from './a.js';\nexport const b = () => a();",
+      },
+      onTestFinished,
+    );
+
+    const result = importCycles.run(index);
+
+    expect(result.metric).toBe(100);
+    expect(result.findings[0]?.message).toContain("2 files form an import cycle");
+  });
+
+  it("flags a longer cycle without recursing off the stack", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.ts": "import { b } from './b.js';\nexport const a = () => b();",
+        "src/b.ts": "import { c } from './c.js';\nexport const b = () => c();",
+        "src/c.ts": "import { a } from './a.js';\nexport const c = () => a();",
+        "src/free.ts": "export const free = 1;",
+      },
+      onTestFinished,
+    );
+
+    const result = importCycles.run(index);
+
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]?.weight).toBe(3);
+    expect(result.metric).toBe(75);
+  });
+});
+
+describe("cross-file-connectivity", () => {
+  it("scores low when code calls across file boundaries", async () => {
+    const index = await indexFixture(
+      {
+        "src/util.ts": "export function helper() { return 1; }",
+        "src/main.ts":
+          "import { helper } from './util.js';\nexport function main() { return helper(); }",
+      },
+      onTestFinished,
+    );
+
+    expect(crossFileConnectivity.run(index).metric).toBe(0);
+  });
+
+  it("scores high when every file only calls itself", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.ts": "function helper() { return 1; }\nexport function a() { return helper(); }",
+        "src/b.ts": "function other() { return 1; }\nexport function b() { return other(); }",
+      },
+      onTestFinished,
+    );
+
+    expect(crossFileConnectivity.run(index).metric).toBe(100);
+  });
+
+  it("does not flag a file for calling its own private helper", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.ts": "function helper() { return 1; }\nexport function a() { return helper(); }",
+        "src/b.ts": "function other() { return 1; }\nexport function b() { return other(); }",
+      },
+      onTestFinished,
+    );
+
+    expect(crossFileConnectivity.run(index).findings).toEqual([]);
+  });
+
+  it("flags a local helper whose name is also defined elsewhere", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.ts": "function format() { return 1; }\nexport function a() { return format(); }",
+        "src/b.ts": "function format() { return 1; }\nexport function b() { return format(); }",
+      },
+      onTestFinished,
+    );
+
+    const findings = crossFileConnectivity.run(index).findings;
+
+    expect(findings).toHaveLength(2);
+    expect(findings[0]?.message).toContain("calls its own format()");
+    expect(findings[0]?.message).toContain("also defined in 1 other file(s)");
+  });
+
+  it("ignores calls into libraries and builtins", async () => {
+    const index = await indexFixture(
+      { "src/a.ts": "export function a() { return JSON.parse('1'); }" },
+      onTestFinished,
+    );
+
+    expect(crossFileConnectivity.run(index).metric).toBe(0);
+  });
+});
+
+describe("runAnalyzers", () => {
+  it("runs every analyzer and returns one result each", async () => {
+    const index = await indexFixture({ "src/a.ts": "export const a = 1;" }, onTestFinished);
+
+    const results = runAnalyzers(index);
+
+    expect(results.map((r) => r.analyzer)).toEqual([
+      "symbol-collision",
+      "orphan-files",
+      "barrel-depth",
+      "import-cycles",
+      "cross-file-connectivity",
+    ]);
+    for (const result of results) {
+      expect(result.metric).toBeGreaterThanOrEqual(0);
+      expect(result.metric).toBeLessThanOrEqual(100);
+    }
+  });
+
+  it("produces no findings on a codebase with no source files", async () => {
+    const index = await indexFixture({ "README.md": "# nothing" }, onTestFinished);
+
+    for (const result of runAnalyzers(index)) {
+      expect(result.metric).toBe(0);
+      expect(result.findings).toEqual([]);
+    }
+  });
+});
