@@ -1,5 +1,6 @@
 import type { Language } from "../discover/detect.js";
-import type { DefinitionKind } from "../parse/language-pack.js";
+import type { FileRole } from "../discover/role.js";
+import type { DefinitionKind, SmellKind } from "../parse/language-pack.js";
 
 /** `path/to/file.ts#name@startIndex` — stable across runs, unique within a scan. */
 export type SymbolId = string;
@@ -11,7 +12,7 @@ export type FileNode = {
   /** Non-blank, non-comment-only lines. */
   loc: number;
   lines: number;
-  isTest: boolean;
+  role: FileRole;
   /** SHA-256 of the contents. Keys the parse cache and the LLM judgement cache. */
   hash: string;
 };
@@ -53,6 +54,39 @@ export type CallEdge = {
   line: number;
 };
 
+/** One function body, with the measurements every context-cost metric needs. */
+export type FunctionNode = {
+  file: string;
+  /** Enclosing named symbol, when the function has a name. */
+  symbol: SymbolId | null;
+  name: string;
+  startLine: number;
+  endLine: number;
+  lines: number;
+  /** McCabe. Branches inside nested functions belong to those functions, not this one. */
+  complexity: number;
+  /** Deepest nesting of blocks, which is what actually makes code hard to hold in mind. */
+  maxDepth: number;
+  /**
+   * Hash of the body's AST shape with every identifier and literal erased.
+   *
+   * Two functions that differ only in names and values hash identically. This
+   * is what catches the copy-paste-then-rename that token-based duplication
+   * detectors miss entirely.
+   */
+  shapeHash: string;
+  /** Named AST nodes in the body. Guards against matching trivial bodies. */
+  shapeSize: number;
+};
+
+export type Smell = {
+  file: string;
+  line: number;
+  kind: SmellKind;
+  /** The offending source, trimmed, for the report. */
+  text: string;
+};
+
 export type CodeIndex = {
   root: string;
   files: Map<string, FileNode>;
@@ -61,6 +95,8 @@ export type CodeIndex = {
   symbolsByName: Map<string, SymbolId[]>;
   imports: ImportEdge[];
   calls: CallEdge[];
+  functions: FunctionNode[];
+  smells: Smell[];
   /** Files that could not be parsed, with the reason. Never silently dropped. */
   failures: { path: string; reason: string }[];
 };

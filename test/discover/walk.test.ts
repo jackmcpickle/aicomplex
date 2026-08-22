@@ -121,28 +121,27 @@ describe("walk", () => {
     expect(await paths(root, { maxFileBytes: 1000 })).toEqual(["src/small.ts"]);
   });
 
-  it("flags test files without excluding them", async () => {
+  it("classifies files by role without excluding them", async () => {
     const root = await makeTmpRepo(
       {
         "src/index.ts": "export const a = 1;",
         "src/index.test.ts": "it('works', () => {});",
-        "test/e2e/login.spec.ts": "it('logs in', () => {});",
-        "app/test_main.py": "def test_main(): pass",
-        "cmd/root_test.go": "package main",
+        "bench/parse.ts": "export const b = 1;",
+        "examples/basic.ts": "export const c = 1;",
+        "scripts/seed.ts": "export const d = 1;",
       },
       onTestFinished,
     );
 
     const files = await walk(root);
-    const tests = files.filter((f) => f.isTest).map((f) => f.path);
 
-    expect(tests).toEqual([
-      "app/test_main.py",
-      "cmd/root_test.go",
-      "src/index.test.ts",
-      "test/e2e/login.spec.ts",
+    expect(files.map((f) => `${f.path}:${f.role}`)).toEqual([
+      "bench/parse.ts:benchmark",
+      "examples/basic.ts:example",
+      "scripts/seed.ts:script",
+      "src/index.test.ts:test",
+      "src/index.ts:source",
     ]);
-    expect(files).toHaveLength(5);
   });
 
   it("reports language and byte size per file", async () => {
@@ -150,6 +149,11 @@ describe("walk", () => {
 
     const [file] = await walk(root);
 
-    expect(file).toMatchObject({ path: "app/main.py", language: "python", bytes: 6, isTest: false });
+    expect(file).toMatchObject({
+      path: "app/main.py",
+      language: "python",
+      bytes: 6,
+      role: "source",
+    });
   });
 });

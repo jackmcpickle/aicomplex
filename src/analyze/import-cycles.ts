@@ -1,5 +1,5 @@
 import type { CodeIndex } from "../index/types.js";
-import { percent, type Analyzer } from "./types.js";
+import { isScored, percent, scoredFiles, type Analyzer } from "./types.js";
 
 /**
  * Files caught in circular import chains.
@@ -26,7 +26,7 @@ export const importCycles: Analyzer = {
     return {
       analyzer: importCycles.name,
       pillar: importCycles.pillar,
-      metric: percent(inCycle, index.files.size),
+      metric: percent(inCycle, scoredFiles(index).length),
       unit: "% of files in an import cycle",
       findings: components
         .sort((a, b) => b.length - a.length)
@@ -40,13 +40,15 @@ export const importCycles: Analyzer = {
   },
 };
 
+/** Import graph over scored files only — a cycle among benchmarks is not a defect. */
 function buildGraph(index: CodeIndex): Map<string, string[]> {
   const graph = new Map<string, string[]>();
-  for (const path of index.files.keys()) graph.set(path, []);
+  for (const file of scoredFiles(index)) graph.set(file.path, []);
 
   for (const edge of index.imports) {
     if (!edge.resolved || edge.resolved === edge.from) continue;
-    graph.get(edge.from)?.push(edge.resolved);
+    if (!graph.has(edge.from) || !isScored(index, edge.resolved)) continue;
+    graph.get(edge.from)!.push(edge.resolved);
   }
 
   return graph;

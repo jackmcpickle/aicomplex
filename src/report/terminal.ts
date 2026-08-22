@@ -1,5 +1,6 @@
 import type { AnalyzerResult, Pillar } from "../analyze/types.js";
-import { PILLARS } from "../analyze/types.js";
+import { PILLARS, scoredFiles } from "../analyze/types.js";
+import { FILE_ROLES, SCORED_ROLES } from "../discover/role.js";
 import type { CodeIndex } from "../index/types.js";
 
 const PILLAR_TITLES: Record<Pillar, string> = {
@@ -27,13 +28,27 @@ export function renderTerminalReport(
   const { detail = 3 } = options;
   const lines: string[] = [""];
 
+  const scored = scoredFiles(index).length;
+
   lines.push(`  ${bold(index.root)}`);
   lines.push(
     dim(
-      `  ${index.files.size} files · ${index.symbols.size} symbols · ` +
+      `  ${scored} scored files · ${index.symbols.size} symbols · ` +
         `${index.imports.length} imports · ${index.calls.length} calls`,
     ),
   );
+
+  // Say plainly what was left out. A file count that silently differs from
+  // what was measured is the kind of thing that makes a score untrustworthy.
+  const excluded = FILE_ROLES.filter((role) => !SCORED_ROLES.has(role))
+    .map((role) => ({ role, count: countByRole(index, role) }))
+    .filter((entry) => entry.count > 0);
+
+  if (excluded.length > 0) {
+    lines.push(
+      dim(`  not scored: ${excluded.map((e) => `${e.count} ${e.role}`).join(" · ")}`),
+    );
+  }
   lines.push("");
 
   for (const pillar of PILLARS) {
@@ -71,4 +86,10 @@ export function renderTerminalReport(
   lines.push("");
 
   return lines.join("\n");
+}
+
+function countByRole(index: CodeIndex, role: string): number {
+  let count = 0;
+  for (const file of index.files.values()) if (file.role === role) count++;
+  return count;
 }

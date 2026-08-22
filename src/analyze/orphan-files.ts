@@ -1,5 +1,6 @@
 import type { CodeIndex } from "../index/types.js";
-import { percent, type Analyzer } from "./types.js";
+import { isLikelyEntrypoint } from "./entrypoints.js";
+import { percent, scoredFiles, type Analyzer } from "./types.js";
 
 /**
  * Files that nothing in the codebase imports.
@@ -22,14 +23,12 @@ export const orphanFiles: Analyzer = {
       if (edge.resolved) imported.add(edge.resolved);
     }
 
-    const candidates = [...index.files.values()].filter(
-      (file) => !file.isTest && !isLikelyEntrypoint(file.path),
-    );
-
     // Go's package model means files in a package are used without importing
     // one another, so unimported Go files say nothing. Only judge languages
     // where imports are file-to-file.
-    const judged = candidates.filter((file) => file.language !== "go");
+    const judged = scoredFiles(index).filter(
+      (file) => file.language !== "go" && !isLikelyEntrypoint(file.path),
+    );
     const orphans = judged.filter((file) => !imported.has(file.path));
 
     return {
@@ -49,32 +48,3 @@ export const orphanFiles: Analyzer = {
   },
 };
 
-const ENTRYPOINT_NAMES = new Set([
-  "index",
-  "main",
-  "cli",
-  "app",
-  "server",
-  "worker",
-  "setup",
-  "conftest",
-  "__init__",
-  "__main__",
-]);
-
-/**
- * True when a file is plausibly a root the program starts from, or is loaded
- * by a tool rather than by an import.
- */
-function isLikelyEntrypoint(filePath: string): boolean {
-  const segments = filePath.split("/");
-  const filename = segments.at(-1)!;
-  const stem = filename.slice(0, filename.lastIndexOf(".")) || filename;
-
-  if (ENTRYPOINT_NAMES.has(stem)) return true;
-  if (segments.length === 1) return true; // Sitting at the repo root.
-  if (/\.config$|\.d$/.test(stem)) return true;
-  if (/^(scripts|bin|migrations|tools)\//.test(filePath)) return true;
-
-  return false;
-}

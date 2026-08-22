@@ -3,6 +3,7 @@ import path from "node:path";
 import ignore, { type Ignore } from "ignore";
 import { glob } from "tinyglobby";
 import { detectLanguage, SUPPORTED_EXTENSIONS, type Language } from "./detect.js";
+import { detectRole, type FileRole } from "./role.js";
 
 export type DiscoveredFile = {
   /** Path relative to the scan root, always posix-separated. */
@@ -10,8 +11,8 @@ export type DiscoveredFile = {
   absPath: string;
   language: Language;
   bytes: number;
-  /** True when the file looks like a test rather than shipped source. */
-  isTest: boolean;
+  /** What the file is for. Only `source` is scored — see `role.ts`. */
+  role: FileRole;
 };
 
 export type WalkOptions = {
@@ -51,9 +52,6 @@ const ALWAYS_EXCLUDE = [
   "**/*_generated.*",
   "**/*.generated.*",
 ];
-
-const TEST_PATTERN =
-  /(^|[./_-])(tests?|__tests__|spec|specs|e2e|fixtures?)([./_-]|$)|\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)test_[^/]+\.py$|[^/]+_test\.(py|go)$/i;
 
 /** 2 MB. Anything bigger is a data blob or generated artifact. */
 const DEFAULT_MAX_FILE_BYTES = 2_000_000;
@@ -101,7 +99,7 @@ export async function walk(root: string, options: WalkOptions = {}): Promise<Dis
       absPath,
       language,
       bytes,
-      isTest: TEST_PATTERN.test(posixPath),
+      role: detectRole(posixPath),
     });
   }
 

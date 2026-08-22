@@ -1,5 +1,5 @@
 import type { CodeIndex, SymbolNode } from "../index/types.js";
-import { percent, type Analyzer } from "./types.js";
+import { isScored, percent, type Analyzer } from "./types.js";
 
 /**
  * How much of the codebase's own code actually calls the rest of it.
@@ -29,7 +29,7 @@ export const crossFileConnectivity: Analyzer = {
     const reimplemented = new Map<string, Set<string>>();
 
     for (const call of index.calls) {
-      if (index.files.get(call.from)?.isTest) continue;
+      if (!isScored(index, call.from)) continue;
 
       const sites = definedIn.get(call.name);
       if (!sites || sites.size === 0) continue; // Library or builtin.
@@ -75,7 +75,7 @@ function definitionSites(index: CodeIndex): Map<string, Set<string>> {
   const sites = new Map<string, Set<string>>();
 
   for (const symbol of index.symbols.values()) {
-    if (!isCallable(symbol)) continue;
+    if (!isCallable(symbol) || !isScored(index, symbol.file)) continue;
     const bucket = sites.get(symbol.name);
     if (bucket) bucket.add(symbol.file);
     else sites.set(symbol.name, new Set([symbol.file]));

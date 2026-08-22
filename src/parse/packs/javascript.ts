@@ -62,6 +62,12 @@ export const JS_IMPORTS = `
 (export_statement
   source: (string (string_fragment) @import.source)) @import.reexport
 
+; Names forwarded by a re-export. Without these the barrel looks like it uses
+; nothing, and everything it forwards looks dead.
+(export_statement
+  (export_clause (export_specifier name: (identifier) @import.name))
+  source: (string))
+
 (call_expression
   function: (import)
   arguments: (arguments (string (string_fragment) @import.source))) @import.dynamic
@@ -99,6 +105,11 @@ export const JS_CALLS = `
 (new_expression constructor: (identifier) @call.name)
 `;
 
+export const JS_SMELLS = `
+(catch_clause body: (statement_block) @smell.empty-catch)
+(comment) @smell.ignore-comment
+`;
+
 export const JS_BRANCH_NODES = [
   "if_statement",
   "else_clause",
@@ -110,6 +121,16 @@ export const JS_BRANCH_NODES = [
   "catch_clause",
   "ternary_expression",
   "optional_chain",
+] as const;
+
+export const JS_NESTING_NODES = [
+  "if_statement",
+  "for_statement",
+  "for_in_statement",
+  "while_statement",
+  "do_statement",
+  "switch_statement",
+  "catch_clause",
 ] as const;
 
 export const JS_FUNCTION_NODES = [
@@ -128,6 +149,8 @@ export const javascriptPack: LanguagePack = {
   imports: JS_IMPORTS,
   exports: JS_EXPORTS,
   calls: JS_CALLS,
+  smells: JS_SMELLS,
   branchNodes: JS_BRANCH_NODES,
+  nestingNodes: JS_NESTING_NODES,
   functionNodes: JS_FUNCTION_NODES,
 };

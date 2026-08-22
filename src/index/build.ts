@@ -7,6 +7,8 @@ import {
   isDefinitionKind,
   moreSpecificKind,
   type DefinitionKind,
+  type LanguagePack,
+  type SmellKind,
 } from "../parse/language-pack.js";
 import { getLanguage, type CompiledLanguage } from "../parse/parser.js";
 import { resolveImport } from "./resolve.js";
@@ -14,8 +16,10 @@ import type {
   CallEdge,
   CodeIndex,
   FileNode,
+  FunctionNode,
   ImportEdge,
   ImportKind,
+  Smell,
   SymbolNode,
 } from "./types.js";
 
@@ -33,6 +37,8 @@ export async function buildIndex(root: string, files: DiscoveredFile[]): Promise
     symbolsByName: new Map(),
     imports: [],
     calls: [],
+    functions: [],
+    smells: [],
     failures: [],
   };
 
@@ -78,6 +84,8 @@ async function indexFile(
 
     index.imports.push(...collectImports(compiled, tree, file, knownFiles));
     index.calls.push(...collectCalls(compiled, tree, file.path, symbols));
+    index.functions.push(...collectFunctions(compiled.pack, tree, file.path, symbols));
+    index.smells.push(...collectSmells(compiled, tree, file.path));
   } finally {
     tree.delete();
   }
@@ -91,7 +99,7 @@ function toFileNode(file: DiscoveredFile, source: string): FileNode {
     bytes: file.bytes,
     lines: lines.length,
     loc: lines.filter((line) => line.trim() !== "").length,
-    isTest: file.isTest,
+    role: file.role,
     hash: createHash("sha256").update(source).digest("hex"),
   };
 }
@@ -290,7 +298,186 @@ function enclosingSymbol(symbols: SymbolNode[], offset: number): SymbolNode | un
   return best;
 }
 
+// ------------------------------------------------------------------ functions
+
+/**
+ * Measures every function body in the file.
+ *
+ * One walk collects all of it, because re-walking per metric is where a
+ * whole-repo scan starts costing real time.
+ */
+function collectFunctions(
+  pack: LanguagePack,
+  tree: Tree,
+  filePath: string,
+  symbols: SymbolNode[],
+): FunctionNode[] {
+  const functionNodes = new Set<string>(pack.functionNodes);
+  const branchNodes = new Set<string>(pack.branchNodes);
+  const nestingNodes = new Set<string>(pack.nestingNodes);
+  const functions: FunctionNode[] = [];
+
+  walkTree(tree.rootNode, (node) => {
+    if (!functionNodes.has(node.type)) return true;
+
+    const shape: string[] = [];
+    let complexity = 1;
+    let shapeSize = 0;
+
+    // Depth is measured from this function's own root, so a deeply nested
+    // helper is not punished for where it happens to live.
+    const maxDepth = measureBody(node, {
+      functionNodes,
+      branchNodes,
+      nestingNodes,
+      shape,
+      onBranch: () => {
+        complexity++;
+      },
+      onNode: () => {
+        shapeSize++;
+      },
+    });
+
+    const symbol = enclosingSymbol(symbols, node.startIndex);
+
+    functions.push({
+      file: filePath,
+      symbol: symbol?.id ?? null,
+      name: symbol?.name ?? "<anonymous>",
+      startLine: node.startPosition.row + 1,
+      endLine: node.endPosition.row + 1,
+      lines: node.endPosition.row - node.startPosition.row + 1,
+      complexity,
+      maxDepth,
+      shapeHash: createHash("sha256").update(shape.join(",")).digest("hex").slice(0, 32),
+      shapeSize,
+    });
+
+    return true; // Keep descending: nested functions are functions too.
+  });
+
+  return functions;
+}
+
+type BodyWalk = {
+  functionNodes: ReadonlySet<string>;
+  branchNodes: ReadonlySet<string>;
+  nestingNodes: ReadonlySet<string>;
+  shape: string[];
+  onBranch: () => void;
+  onNode: () => void;
+};
+
+/**
+ * Walks one function body, accumulating its AST shape, branches and depth.
+ *
+ * Nested function bodies are skipped so their branches and shape belong to
+ * them rather than inflating their parent.
+ */
+function measureBody(root: Node, walk: BodyWalk): number {
+  let maxDepth = 0;
+
+  const visit = (node: Node, depth: number): void => {
+    for (const child of node.namedChildren) {
+      if (!child) continue;
+
+      walk.shape.push(child.type);
+      walk.onNode();
+
+      if (walk.functionNodes.has(child.type)) continue; // Belongs to the nested function.
+
+      if (walk.branchNodes.has(child.type)) walk.onBranch();
+
+      const nextDepth =
+        walk.nestingNodes.has(child.type) && !isChainedElse(child) ? depth + 1 : depth;
+
+      maxDepth = Math.max(maxDepth, nextDepth);
+      visit(child, nextDepth);
+    }
+  };
+
+  visit(root, 0);
+  return maxDepth;
+}
+
+/**
+ * True for the `if` in an `else if`.
+ *
+ * Such an `if` is a continuation of the chain, not a level inside it. Without
+ * this, a forty-case dispatch written as `else if` reports a depth of forty.
+ */
+function isChainedElse(node: Node): boolean {
+  const parentType = node.parent?.type;
+  return parentType === "else_clause" || parentType === "elif_clause";
+}
+
+// --------------------------------------------------------------------- smells
+
+function collectSmells(compiled: CompiledLanguage, tree: Tree, filePath: string): Smell[] {
+  const smells: Smell[] = [];
+
+  for (const capture of compiled.queries.smells.captures(tree.rootNode)) {
+    const [prefix, kind] = splitCaptureName(capture.name);
+    if (prefix !== "smell" || !kind) continue;
+    if (!validateSmell(kind as SmellKind, capture.node)) continue;
+
+    smells.push({
+      file: filePath,
+      line: capture.node.startPosition.row + 1,
+      kind: kind as SmellKind,
+      text: capture.node.text.slice(0, 120).replace(/\s+/g, " ").trim(),
+    });
+  }
+
+  return smells;
+}
+
+const IGNORE_COMMENT =
+  /eslint-disable|@ts-ignore|@ts-expect-error|@ts-nocheck|type:\s*ignore|noqa|nolint|pylint:\s*disable|prettier-ignore|istanbul ignore|c8 ignore/i;
+
+/**
+ * Decides whether a captured node is really a smell.
+ *
+ * The queries cannot express "empty" or "says ignore", so they capture every
+ * candidate and the judgement happens here.
+ */
+function validateSmell(kind: SmellKind, node: Node): boolean {
+  switch (kind) {
+    case "empty-catch":
+      // A catch block with nothing in it discards the error entirely.
+      return node.namedChildren.filter((child) => child?.type !== "comment").length === 0;
+
+    case "bare-except": {
+      // `except:` or `except Exception:` whose body only passes. The block is
+      // a plain named child — except_clause has no `body` field.
+      const block = node.namedChildren.find((child) => child?.type === "block");
+      const statements = block?.namedChildren.filter((child) => child?.type !== "comment") ?? [];
+      return statements.length === 1 && statements[0]?.type === "pass_statement";
+    }
+
+    case "ignore-comment":
+      return IGNORE_COMMENT.test(node.text);
+
+    case "any-type":
+      return node.text === "any";
+  }
+}
+
 // --------------------------------------------------------------------- shared
+
+/** Pre-order walk. Returning false from `visit` prunes that subtree. */
+function walkTree(root: Node, visit: (node: Node) => boolean): void {
+  const stack: Node[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (node !== root && !visit(node)) continue;
+    for (let i = node.namedChildCount - 1; i >= 0; i--) {
+      const child = node.namedChild(i);
+      if (child) stack.push(child);
+    }
+  }
+}
 
 function splitCaptureName(name: string): [string, string | undefined] {
   const dot = name.indexOf(".");

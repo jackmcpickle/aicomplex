@@ -1,5 +1,5 @@
 import type { CodeIndex } from "../index/types.js";
-import { percent, type Analyzer } from "./types.js";
+import { isScored, percent, type Analyzer } from "./types.js";
 
 /**
  * How far a re-export chain separates an import site from the real definition.
@@ -21,7 +21,9 @@ export const barrelDepth: Analyzer = {
 
   run(index: CodeIndex) {
     const barrels = findBarrels(index);
-    const internal = index.imports.filter((edge) => edge.resolved !== null);
+    const internal = index.imports.filter(
+      (edge) => edge.resolved !== null && isScored(index, edge.from) && isScored(index, edge.resolved),
+    );
     const throughBarrel = internal.filter((edge) => barrels.has(edge.resolved!));
 
     const hops = new Map<string, number>();
@@ -74,6 +76,7 @@ function findBarrels(index: CodeIndex): Set<string> {
 
   const barrels = new Set<string>();
   for (const [file, reExports] of reExportsByFile) {
+    if (!isScored(index, file)) continue;
     if (reExports >= (ownDefinitions.get(file) ?? 0)) barrels.add(file);
   }
   return barrels;

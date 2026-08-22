@@ -6,6 +6,8 @@ import {
   JS_EXPORTS,
   JS_FUNCTION_NODES,
   JS_IMPORTS,
+  JS_NESTING_NODES,
+  JS_SMELLS,
 } from "./javascript.js";
 
 /** Patterns for node types that exist only in the TypeScript/TSX grammars. */
@@ -26,6 +28,11 @@ const TS_EXPORTS = `
 (export_statement declaration: (abstract_class_declaration name: (type_identifier) @export.name))
 `;
 
+/** `any` erases the type system locally, which is how a type error gets silenced. */
+const TS_SMELLS = `
+(predefined_type) @smell.any-type
+`;
+
 const TS_BRANCH_NODES = [...JS_BRANCH_NODES, "non_null_expression"] as const;
 
 const shared = {
@@ -33,7 +40,9 @@ const shared = {
   imports: JS_IMPORTS,
   exports: JS_EXPORTS + TS_EXPORTS,
   calls: JS_CALLS,
+  smells: JS_SMELLS + TS_SMELLS,
   branchNodes: TS_BRANCH_NODES,
+  nestingNodes: JS_NESTING_NODES,
   functionNodes: JS_FUNCTION_NODES,
 };
 

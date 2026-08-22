@@ -34,22 +34,42 @@ Four pillars. Every metric is normalised so **higher is worse**.
 - `import-cycles` — share of files in a circular import chain
 - `cross-file-connectivity` — share of internal calls that never leave their file
 
-Context cost and slop signals are next.
+**Context cost** — how much must it read?
+- `god-files` — share of lines in files too large to read in one pass
+- `function-complexity` — share of functions too branchy or too deeply nested
+
+**Slop signals** — the AI tells
+- `duplication` — share of function bodies with a structural twin elsewhere
+- `error-masking` — silenced errors, blanket ignores and `any` per 1k lines
+- `dead-exports` — share of exports nothing references
+
+Only shipped source is scored. Benchmarks, examples, docs, scripts and tests
+are classified and skipped — they legitimately repeat names and sit unimported,
+so scoring them turns real signal into noise.
+
+Duplication matches on the AST shape with identifiers and literals erased, so a
+copied function whose variables were renamed still counts. Token-based
+detectors miss exactly that case, which is the one agents produce most.
 
 ## Example
 
 ```
 $ aicc scan ./zod
 
-  Findability — can an agent locate things?
+  155 scored files · 5523 symbols · 1329 imports · 46347 calls
+  not scored: 198 test · 81 benchmark · 14 script · 39 docs
 
-     11.6  barrel-depth             % of internal imports routed through a barrel
-           packages/zod/src/v4/index.ts is a barrel used by 6 import(s), 5 re-exports deep
+     11.3  barrel-depth             % of internal imports routed through a barrel
+           packages/zod/src/v4/core/index.ts is a barrel used by 27 import(s), 2 re-exports deep
 
-  Traceability — can an agent follow a change?
+     54.2  import-cycles            % of files in an import cycle
+           76 files form an import cycle: core/compile.ts → core/checks.ts → core/core.ts → …
 
-     17.2  import-cycles            % of files in an import cycle
-           76 files form an import cycle: core/index.ts → core/core.ts → core/errors.ts → …
+     65.4  god-files                % of lines in files over 400 lines
+           packages/zod/src/v3/types.ts is 4636 lines — roughly 45.8k tokens to read
+
+     36.5  duplication              % of function bodies duplicated elsewhere
+           18 copies of the same 121-line body across 18 file(s): error
 ```
 
 ## Languages

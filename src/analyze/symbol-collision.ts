@@ -1,5 +1,5 @@
 import type { CodeIndex } from "../index/types.js";
-import { percent, type Analyzer } from "./types.js";
+import { isScored, percent, type Analyzer } from "./types.js";
 
 /**
  * How often a symbol name points at more than one definition.
@@ -10,8 +10,9 @@ import { percent, type Analyzer } from "./types.js";
  * by agents accumulate these fast, because each new module gets its own
  * locally-sensible `validate`, `format`, or `Config`.
  *
- * Test files are excluded. A `describe` helper repeated across specs is
- * normal and costs an agent nothing.
+ * Only shipped source counts. A `setup` helper repeated across every spec, or
+ * a `getSizing` repeated across every benchmark, is normal and costs an agent
+ * nothing.
  */
 export const symbolCollision: Analyzer = {
   name: "symbol-collision",
@@ -24,13 +25,13 @@ export const symbolCollision: Analyzer = {
     for (const [name, ids] of index.symbolsByName) {
       const fromSource = ids.filter((id) => {
         const symbol = index.symbols.get(id);
-        return symbol && !index.files.get(symbol.file)?.isTest;
+        return symbol !== undefined && isScored(index, symbol.file);
       });
       if (fromSource.length > 1) buckets.set(name, fromSource);
     }
 
-    const sourceSymbols = [...index.symbols.values()].filter(
-      (symbol) => !index.files.get(symbol.file)?.isTest,
+    const sourceSymbols = [...index.symbols.values()].filter((symbol) =>
+      isScored(index, symbol.file),
     ).length;
 
     const ambiguous = [...buckets.values()].reduce((sum, ids) => sum + ids.length, 0);

@@ -25,15 +25,49 @@ export type LanguagePack = {
   exports: string;
   /** Captures `@call.name` at every call site. */
   calls: string;
+  /**
+   * Captures `@smell.<kind>` at constructs that hide problems.
+   *
+   * Queries over-capture on purpose — an empty catch and a full one look the
+   * same to a query — and `validateSmell` in the index builder decides which
+   * captures survive.
+   */
+  smells: string;
 
   /**
    * Node types that add a branch to a function's control flow. Used for
    * cyclomatic complexity, which is otherwise identical across languages.
    */
   branchNodes: readonly string[];
+  /**
+   * Node types that indent their contents — a strict subset of `branchNodes`.
+   *
+   * These are kept separate because most branches do not nest. An `else if`
+   * chain, a switch with forty cases, and a chained ternary are all flat to
+   * read but form a deep right-leaning AST. Counting those as nesting made a
+   * 40-case dispatch function report a depth of 51.
+   */
+  nestingNodes: readonly string[];
   /** Node types that are function-like, used to attribute code to a symbol. */
   functionNodes: readonly string[];
 };
+
+/**
+ * Ways code hides a problem instead of handling it.
+ *
+ * GitClear measured error-masking constructs rising 47% as AI assistance
+ * spread. The mechanism is that an agent asked to make something work will
+ * silence the failure when it cannot fix the cause, and a silenced failure
+ * looks identical to a fixed one in review.
+ */
+export const SMELL_KINDS = [
+  "empty-catch",
+  "bare-except",
+  "ignore-comment",
+  "any-type",
+] as const;
+
+export type SmellKind = (typeof SMELL_KINDS)[number];
 
 /** Definition kinds aicc recognises, in order of specificity. */
 export const DEFINITION_KINDS = [

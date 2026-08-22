@@ -276,11 +276,67 @@ describe("runAnalyzers", () => {
       "barrel-depth",
       "import-cycles",
       "cross-file-connectivity",
+      "god-files",
+      "function-complexity",
+      "duplication",
+      "error-masking",
+      "dead-exports",
     ]);
     for (const result of results) {
       expect(result.metric).toBeGreaterThanOrEqual(0);
       expect(result.metric).toBeLessThanOrEqual(100);
     }
+  });
+
+  /**
+   * Regression: scanning zod scored `packages/bench` and `packages/docs` as
+   * shipped source, which made half its files look orphaned and half its
+   * names look ambiguous.
+   */
+  it("never lets benchmarks, examples, docs or scripts inflate a metric", async () => {
+    const noise = {
+      "bench/a.ts": "function getSizing() { return 1; }\nexport function a() { return getSizing(); }",
+      "bench/b.ts": "function getSizing() { return 1; }\nexport function b() { return getSizing(); }",
+      "bench/c.ts": "function getSizing() { return 1; }\nexport function c() { return getSizing(); }",
+      "examples/demo.ts": "export const demo = 1;",
+      "docs/page.ts": "export const page = 1;",
+      "scripts/seed.ts": "export const seed = 1;",
+    };
+
+    const clean = await indexFixture(
+      { "src/index.ts": "export const a = 1;", "src/used.ts": "export const used = 1;" },
+      onTestFinished,
+    );
+    const noisy = await indexFixture(
+      { "src/index.ts": "export const a = 1;", "src/used.ts": "export const used = 1;", ...noise },
+      onTestFinished,
+    );
+
+    const before = runAnalyzers(clean);
+    const after = runAnalyzers(noisy);
+
+    // dead-exports can legitimately go *down*: a name also defined in a
+    // benchmark is ambiguous, so it stops being confidently dead. Nothing may
+    // go up.
+    for (const [i, result] of after.entries()) {
+      expect(result.metric, result.analyzer).toBeLessThanOrEqual(before[i]!.metric);
+    }
+  });
+
+  it("still scores collisions and orphans inside real source", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.ts": "export function validate() {}",
+        "src/b.ts": "export function validate() {}",
+        "bench/c.ts": "export function validate() {}",
+      },
+      onTestFinished,
+    );
+
+    const collision = runAnalyzers(index).find((r) => r.analyzer === "symbol-collision")!;
+
+    expect(collision.metric).toBe(100);
+    expect(collision.findings[0]?.message).toBe('"validate" is defined 2 times across 2 files');
   });
 
   it("produces no findings on a codebase with no source files", async () => {

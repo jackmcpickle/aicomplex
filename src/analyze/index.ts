@@ -1,6 +1,11 @@
 import type { CodeIndex } from "../index/types.js";
 import { barrelDepth } from "./barrel-depth.js";
 import { crossFileConnectivity } from "./cross-file-connectivity.js";
+import { deadExports } from "./dead-exports.js";
+import { duplication } from "./duplication.js";
+import { errorMasking } from "./error-masking.js";
+import { functionComplexity } from "./function-complexity.js";
+import { godFiles } from "./god-files.js";
 import { importCycles } from "./import-cycles.js";
 import { orphanFiles } from "./orphan-files.js";
 import { symbolCollision } from "./symbol-collision.js";
@@ -20,6 +25,11 @@ export const ANALYZERS: readonly Analyzer[] = [
   barrelDepth,
   importCycles,
   crossFileConnectivity,
+  godFiles,
+  functionComplexity,
+  duplication,
+  errorMasking,
+  deadExports,
 ];
 
 export function runAnalyzers(index: CodeIndex): AnalyzerResult[] {

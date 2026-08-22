@@ -25,6 +25,7 @@ export type CompiledLanguage = {
     imports: Query;
     exports: Query;
     calls: Query;
+    smells: Query;
   };
 };
 
@@ -64,6 +65,7 @@ async function compile(language: Language): Promise<CompiledLanguage> {
       imports: buildQuery(grammar, pack, "imports"),
       exports: buildQuery(grammar, pack, "exports"),
       calls: buildQuery(grammar, pack, "calls"),
+      smells: buildQuery(grammar, pack, "smells"),
     },
   };
 }
@@ -78,7 +80,7 @@ async function compile(language: Language): Promise<CompiledLanguage> {
 function buildQuery(
   grammar: TSLanguage,
   pack: LanguagePack,
-  name: "definitions" | "imports" | "exports" | "calls",
+  name: "definitions" | "imports" | "exports" | "calls" | "smells",
 ): Query {
   try {
     return new Query(grammar, pack[name]);

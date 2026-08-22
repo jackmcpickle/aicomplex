@@ -1,4 +1,5 @@
-import type { CodeIndex } from "../index/types.js";
+import { SCORED_ROLES } from "../discover/role.js";
+import type { CodeIndex, FileNode } from "../index/types.js";
 
 export const PILLARS = ["findability", "traceability", "context-cost", "slop"] as const;
 
@@ -50,4 +51,21 @@ export type Analyzer = {
 /** Convenience for analyzers that need a size-relative percentage. */
 export function percent(part: number, whole: number): number {
   return whole === 0 ? 0 : (part / whole) * 100;
+}
+
+/**
+ * Whether a file counts toward the score.
+ *
+ * Every analyzer must gate on this. Benchmarks, examples, scripts and docs
+ * break the assumptions the metrics rest on — repeated names and unimported
+ * files are correct there — so including them turns real signal into noise.
+ */
+export function isScored(index: CodeIndex, filePath: string): boolean {
+  const file = index.files.get(filePath);
+  return file !== undefined && SCORED_ROLES.has(file.role);
+}
+
+/** Every file that counts toward the score. */
+export function scoredFiles(index: CodeIndex): FileNode[] {
+  return [...index.files.values()].filter((file) => SCORED_ROLES.has(file.role));
 }

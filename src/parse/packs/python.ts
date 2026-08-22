@@ -61,6 +61,11 @@ export const pythonPack: LanguagePack = {
 (call function: (attribute attribute: (identifier) @call.name))
 `,
 
+  smells: `
+(except_clause) @smell.bare-except
+(comment) @smell.ignore-comment
+`,
+
   branchNodes: [
     "if_statement",
     "elif_clause",
@@ -72,6 +77,14 @@ export const pythonPack: LanguagePack = {
     "boolean_operator",
     "case_clause",
     "assert_statement",
+  ],
+
+  nestingNodes: [
+    "if_statement",
+    "for_statement",
+    "while_statement",
+    "with_statement",
+    "try_statement",
   ],
 
   functionNodes: ["function_definition", "lambda"],

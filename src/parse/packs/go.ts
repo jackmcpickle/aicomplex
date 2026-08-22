@@ -35,6 +35,17 @@ export const goPack: LanguagePack = {
 (call_expression function: (selector_expression field: (field_identifier) @call.name))
 `,
 
+  // Go's error handling is explicit, so a swallowed error is an empty block on
+  // an `err != nil` check.
+  smells: `
+((if_statement
+  condition: (binary_expression left: (identifier) @_err)
+  consequence: (block) @smell.empty-catch)
+  (#eq? @_err "err"))
+
+(comment) @smell.ignore-comment
+`,
+
   branchNodes: [
     "if_statement",
     "for_statement",
@@ -43,6 +54,14 @@ export const goPack: LanguagePack = {
     "communication_case",
     "select_statement",
     "type_switch_statement",
+  ],
+
+  nestingNodes: [
+    "if_statement",
+    "for_statement",
+    "expression_switch_statement",
+    "type_switch_statement",
+    "select_statement",
   ],
 
   functionNodes: ["function_declaration", "method_declaration", "func_literal"],
