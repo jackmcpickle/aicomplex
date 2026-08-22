@@ -13,6 +13,11 @@ import { isScored, percent, type Analyzer } from "./types.js";
  * Only shipped source counts. A `setup` helper repeated across every spec, or
  * a `getSizing` repeated across every benchmark, is normal and costs an agent
  * nothing.
+ *
+ * Methods are excluded too. Ten classes implementing `run` is polymorphism
+ * working as intended, and an agent finds `Analyzer.run` through the type
+ * rather than by grepping the bare name. Counting those punished aicc's own
+ * analyzer interface.
  */
 export const symbolCollision: Analyzer = {
   name: "symbol-collision",
@@ -22,17 +27,17 @@ export const symbolCollision: Analyzer = {
   run(index: CodeIndex) {
     const buckets = new Map<string, string[]>();
 
+    const counts = (id: string) => {
+      const symbol = index.symbols.get(id);
+      return symbol !== undefined && symbol.kind !== "method" && isScored(index, symbol.file);
+    };
+
     for (const [name, ids] of index.symbolsByName) {
-      const fromSource = ids.filter((id) => {
-        const symbol = index.symbols.get(id);
-        return symbol !== undefined && isScored(index, symbol.file);
-      });
+      const fromSource = ids.filter(counts);
       if (fromSource.length > 1) buckets.set(name, fromSource);
     }
 
-    const sourceSymbols = [...index.symbols.values()].filter((symbol) =>
-      isScored(index, symbol.file),
-    ).length;
+    const sourceSymbols = [...index.symbols.keys()].filter(counts).length;
 
     const ambiguous = [...buckets.values()].reduce((sum, ids) => sum + ids.length, 0);
 

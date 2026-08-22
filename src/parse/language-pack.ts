@@ -50,6 +50,14 @@ export type LanguagePack = {
   nestingNodes: readonly string[];
   /** Node types that are function-like, used to attribute code to a symbol. */
   functionNodes: readonly string[];
+  /**
+   * Leaf node types that carry a name.
+   *
+   * Counting these gives a cheap answer to "is this name mentioned anywhere
+   * else?" that covers type annotations, property access and every other
+   * reference form a query would otherwise have to enumerate individually.
+   */
+  identifierNodes: readonly string[];
 };
 
 /**

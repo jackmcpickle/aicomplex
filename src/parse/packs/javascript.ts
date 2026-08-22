@@ -142,6 +142,13 @@ export const JS_FUNCTION_NODES = [
   "method_definition",
 ] as const;
 
+export const JS_IDENTIFIER_NODES = [
+  "identifier",
+  "property_identifier",
+  "shorthand_property_identifier",
+  "shorthand_property_identifier_pattern",
+] as const;
+
 export const javascriptPack: LanguagePack = {
   language: "javascript",
   wasmSpecifier: "tree-sitter-javascript/tree-sitter-javascript.wasm",
@@ -153,4 +160,5 @@ export const javascriptPack: LanguagePack = {
   branchNodes: JS_BRANCH_NODES,
   nestingNodes: JS_NESTING_NODES,
   functionNodes: JS_FUNCTION_NODES,
+  identifierNodes: JS_IDENTIFIER_NODES,
 };

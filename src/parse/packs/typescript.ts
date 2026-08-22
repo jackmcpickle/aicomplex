@@ -5,6 +5,7 @@ import {
   JS_DEFINITIONS,
   JS_EXPORTS,
   JS_FUNCTION_NODES,
+  JS_IDENTIFIER_NODES,
   JS_IMPORTS,
   JS_NESTING_NODES,
   JS_SMELLS,
@@ -44,6 +45,9 @@ const shared = {
   branchNodes: TS_BRANCH_NODES,
   nestingNodes: JS_NESTING_NODES,
   functionNodes: JS_FUNCTION_NODES,
+  // `type_identifier` is what makes a type used purely in an annotation
+  // visible as a reference at all.
+  identifierNodes: [...JS_IDENTIFIER_NODES, "type_identifier"],
 };
 
 export const typescriptPack: LanguagePack = {

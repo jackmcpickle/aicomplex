@@ -93,6 +93,12 @@ export type CodeIndex = {
   symbols: Map<SymbolId, SymbolNode>;
   /** Powers collision detection: a name with many entries is hard to grep for. */
   symbolsByName: Map<string, SymbolId[]>;
+  /**
+   * How often each identifier occurs anywhere in the scan, definitions
+   * included. A name occurring more often than it is defined is referenced
+   * somewhere — including from type annotations, which calls and imports miss.
+   */
+  identifierCounts: Map<string, number>;
   imports: ImportEdge[];
   calls: CallEdge[];
   functions: FunctionNode[];

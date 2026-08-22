@@ -88,4 +88,6 @@ export const pythonPack: LanguagePack = {
   ],
 
   functionNodes: ["function_definition", "lambda"],
+
+  identifierNodes: ["identifier"],
 };

@@ -22,30 +22,12 @@ export const deadExports: Analyzer = {
   describe: "Share of exported symbols nothing in the codebase references",
 
   run(index: CodeIndex) {
-    const used = new Set<string>();
-
-    for (const edge of index.imports) {
-      for (const name of edge.names) used.add(name);
-    }
-    for (const call of index.calls) used.add(call.name);
-
-    // An export re-exported by a barrel is used by that barrel, whatever the
-    // rest of the codebase does with it.
-    for (const edge of index.imports) {
-      if (edge.kind === "reexport") for (const name of edge.names) used.add(name);
-    }
-
     const exported = [...index.symbols.values()].filter(
       (symbol) =>
         symbol.exported && isScored(index, symbol.file) && !isLikelyEntrypoint(symbol.file),
     );
 
-    // A symbol referenced anywhere other than its own definition is alive.
-    const dead = exported.filter((symbol) => {
-      if (used.has(symbol.name)) return false;
-      const definitions = index.symbolsByName.get(symbol.name)?.length ?? 1;
-      return definitions === 1;
-    });
+    const dead = exported.filter((symbol) => !isReferenced(index, symbol.name));
 
     return {
       analyzer: deadExports.name,
@@ -65,3 +47,17 @@ export const deadExports: Analyzer = {
     };
   },
 };
+
+/**
+ * Whether a name is mentioned anywhere beyond its own definitions.
+ *
+ * Every definition contributes one occurrence of its own name, so a name is
+ * referenced once it occurs more often than that. This deliberately errs
+ * toward "used": a name shared with something unrelated will look alive, which
+ * is the safe direction for an analyzer that accuses code of being dead.
+ */
+function isReferenced(index: CodeIndex, name: string): boolean {
+  const occurrences = index.identifierCounts.get(name) ?? 0;
+  const definitions = index.symbolsByName.get(name)?.length ?? 1;
+  return occurrences > definitions;
+}

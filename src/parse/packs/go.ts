@@ -65,4 +65,6 @@ export const goPack: LanguagePack = {
   ],
 
   functionNodes: ["function_declaration", "method_declaration", "func_literal"],
+
+  identifierNodes: ["identifier", "type_identifier", "field_identifier", "package_identifier"],
 };

@@ -4,6 +4,7 @@ import { duplication } from "../../src/analyze/duplication.js";
 import { errorMasking } from "../../src/analyze/error-masking.js";
 import { functionComplexity } from "../../src/analyze/function-complexity.js";
 import { godFiles } from "../../src/analyze/god-files.js";
+import { symbolCollision } from "../../src/analyze/symbol-collision.js";
 import { indexFixture } from "../helpers/index-fixture.js";
 
 /** A body big enough to clear the duplication analyzer's minimum shape size. */
@@ -292,5 +293,73 @@ describe("function-complexity", () => {
 
     expect(outer.complexity).toBe(1);
     expect(outer.maxDepth).toBe(0);
+  });
+});
+
+describe("dead-exports — reference forms", () => {
+  it("treats a type used only in an annotation as alive", async () => {
+    const index = await indexFixture(
+      {
+        "src/types.ts": "export type Finding = { message: string };",
+        "src/use.ts": "import type { Finding } from './types.js';\nexport function a(f: Finding) { return f; }",
+      },
+      onTestFinished,
+    );
+
+    expect(deadExports.run(index).findings.map((f) => f.symbol)).not.toContain("Finding");
+  });
+
+  it("treats a type used in an annotation inside its own module as alive", async () => {
+    const index = await indexFixture(
+      {
+        "src/types.ts": [
+          "export type Finding = { message: string };",
+          "export type Result = { findings: Finding[] };",
+        ].join("\n"),
+        "src/use.ts": "import type { Result } from './types.js';\nexport function a(r: Result) { return r; }",
+      },
+      onTestFinished,
+    );
+
+    expect(deadExports.run(index).findings.map((f) => f.symbol)).not.toContain("Finding");
+  });
+
+  it("still flags a type nothing mentions at all", async () => {
+    const index = await indexFixture(
+      {
+        "src/types.ts": "export type Orphaned = { message: string };",
+        "src/use.ts": "export function a() { return 1; }",
+      },
+      onTestFinished,
+    );
+
+    expect(deadExports.run(index).findings.map((f) => f.symbol)).toContain("Orphaned");
+  });
+});
+
+describe("symbol-collision — interface methods", () => {
+  it("does not punish many classes implementing the same method name", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.ts": "export class A { run() { return 1; } }",
+        "src/b.ts": "export class B { run() { return 2; } }",
+        "src/c.ts": "export class C { run() { return 3; } }",
+      },
+      onTestFinished,
+    );
+
+    expect(symbolCollision.run(index).metric).toBe(0);
+  });
+
+  it("still punishes duplicated top-level function names", async () => {
+    const index = await indexFixture(
+      {
+        "src/a.ts": "export function run() { return 1; }",
+        "src/b.ts": "export function run() { return 2; }",
+      },
+      onTestFinished,
+    );
+
+    expect(symbolCollision.run(index).metric).toBe(100);
   });
 });
