@@ -91,9 +91,3 @@ function buildQuery(
     );
   }
 }
-
-/** Parses source text. Returns null when tree-sitter cannot produce a tree. */
-export async function parseSource(language: Language, source: string) {
-  const { parser } = await getLanguage(language);
-  return parser.parse(source);
-}

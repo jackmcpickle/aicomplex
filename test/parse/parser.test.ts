@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LANGUAGES } from "../../src/discover/detect.js";
-import { getLanguage, parseSource } from "../../src/parse/parser.js";
+import { getLanguage } from "../../src/parse/parser.js";
 
 /**
  * A query that names a node type its grammar does not have compiles to
@@ -23,10 +23,13 @@ describe("language packs", () => {
     ["python", "def add(a):\n    return a + 1\n"],
     ["go", "package main\n\nfunc Add(a int) int { return a + 1 }\n"],
   ] as const)("parses %s without error nodes", async (language, source) => {
-    const tree = await parseSource(language, source);
+    const { parser } = await getLanguage(language);
+    const tree = parser.parse(source);
 
     expect(tree).not.toBeNull();
     expect(tree!.rootNode.hasError).toBe(false);
+
+    tree?.delete();
   });
 
   it("caches the compiled language across calls", async () => {
