@@ -1,5 +1,6 @@
 import type { ScoredIndex } from "../index/scope.js";
-import { percent, type Analyzer } from "./types.js";
+import { percent } from "./types.js";
+import type { Analyzer } from "./types.js";
 
 /**
  * Functions with more branching or nesting than can be held in mind at once.
@@ -12,14 +13,13 @@ import { percent, type Analyzer } from "./types.js";
  * A function is flagged when either measure crosses its threshold.
  */
 export const functionComplexity: Analyzer = {
+  describe: "Share of functions too branchy or too deeply nested to follow",
   name: "function-complexity",
   pillar: "context-cost",
-  describe: "Share of functions too branchy or too deeply nested to follow",
-
   run(index: ScoredIndex) {
-    const functions = index.functions;
+    const { functions } = index;
     const hard = functions.filter(
-      (fn) => fn.complexity > MAX_COMPLEXITY || fn.maxDepth > MAX_DEPTH,
+      (fn) => fn.complexity > MAX_COMPLEXITY || fn.maxDepth > MAX_DEPTH
     );
 
     return {

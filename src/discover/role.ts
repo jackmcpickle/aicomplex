@@ -20,17 +20,23 @@ export const FILE_ROLES = [
 export type FileRole = (typeof FILE_ROLES)[number];
 
 /** Roles that carry the codebase's actual behaviour, and so get scored. */
-export const SCORED_ROLES: ReadonlySet<FileRole> = new Set<FileRole>(["source"]);
+export const SCORED_ROLES: ReadonlySet<FileRole> = new Set<FileRole>([
+  "source",
+]);
 
-const TEST = /(^|\/)(tests?|__tests__|specs?|e2e|fixtures?|testdata|mocks?|__mocks__)(\/|$)|\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)test_[^/]+\.py$|[^/]+_test\.(py|go)$|(^|\/)conftest\.py$/i;
+const TEST =
+  /(^|\/)(tests?|__tests__|specs?|e2e|fixtures?|testdata|mocks?|__mocks__)(\/|$)|\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)test_[^/]+\.py$|[^/]+_test\.(py|go)$|(^|\/)conftest\.py$/iu;
 
-const BENCHMARK = /(^|\/)(bench|benches|benchmark|benchmarks|perf|performance)(\/|$)|\.bench\.[cm]?[jt]sx?$/i;
+const BENCHMARK =
+  /(^|\/)(bench|benches|benchmark|benchmarks|perf|performance)(\/|$)|\.bench\.[cm]?[jt]sx?$/iu;
 
-const EXAMPLE = /(^|\/)(examples?|demos?|samples?|playground|sandbox|templates?|scaffold)(\/|$)/i;
+const EXAMPLE =
+  /(^|\/)(examples?|demos?|samples?|playground|sandbox|templates?|scaffold)(\/|$)/iu;
 
-const DOCS = /(^|\/)(docs?|documentation|website|www)(\/|$)/i;
+const DOCS = /(^|\/)(docs?|documentation|website|www)(\/|$)/iu;
 
-const SCRIPT = /(^|\/)(scripts?|bin|tools?|tooling|migrations?|codegen|build)(\/|$)|(^|\/)[^/]*\.config\.[cm]?[jt]s$|(^|\/)(gulpfile|webpack|rollup|vite|vitest|jest|eslint|prettier|tailwind)[^/]*\.[cm]?[jt]s$/i;
+const SCRIPT =
+  /(^|\/)(scripts?|bin|tools?|tooling|migrations?|codegen|build)(\/|$)|(^|\/)[^/]*\.config\.[cm]?[jt]s$|(^|\/)(gulpfile|webpack|rollup|vite|vitest|jest|eslint|prettier|tailwind)[^/]*\.[cm]?[jt]s$/iu;
 
 /**
  * Classifies a path by role.
@@ -40,10 +46,20 @@ const SCRIPT = /(^|\/)(scripts?|bin|tools?|tooling|migrations?|codegen|build)(\/
  * tooling for the product.
  */
 export function detectRole(filePath: string): FileRole {
-  if (TEST.test(filePath)) return "test";
-  if (BENCHMARK.test(filePath)) return "benchmark";
-  if (EXAMPLE.test(filePath)) return "example";
-  if (DOCS.test(filePath)) return "docs";
-  if (SCRIPT.test(filePath)) return "script";
+  if (TEST.test(filePath)) {
+    return "test";
+  }
+  if (BENCHMARK.test(filePath)) {
+    return "benchmark";
+  }
+  if (EXAMPLE.test(filePath)) {
+    return "example";
+  }
+  if (DOCS.test(filePath)) {
+    return "docs";
+  }
+  if (SCRIPT.test(filePath)) {
+    return "script";
+  }
   return "source";
 }

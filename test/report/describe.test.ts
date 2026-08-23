@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import type { Finding, FindingKind } from "../../src/analyze/findings.js";
 import { renderFinding } from "../../src/report/describe.js";
 
@@ -11,116 +12,131 @@ import { renderFinding } from "../../src/report/describe.js";
  */
 const SAMPLES: Record<FindingKind, Finding> = {
   "ambiguous-name": {
+    definitions: 9,
+    file: "src/a.ts",
+    files: 7,
     kind: "ambiguous-name",
     name: "validate",
-    definitions: 9,
-    files: 7,
-    file: "src/a.ts",
     symbol: "validate",
     weight: 9,
   },
-  orphan: { kind: "orphan", file: "src/leftover.ts", loc: 42, weight: 42 },
-  barrel: { kind: "barrel", file: "src/lib/index.ts", uses: 12, chain: 3, weight: 36 },
-  cycle: {
-    kind: "cycle",
-    members: ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/e.ts"],
-    file: "src/a.ts",
-    weight: 5,
-  },
-  reimplemented: {
-    kind: "reimplemented",
-    file: "src/main.ts",
-    names: ["format", "parse", "slug", "trim"],
-    alsoDefinedIn: 2,
-    weight: 4,
-  },
-  "large-file": { kind: "large-file", file: "src/big.ts", loc: 1800, bytes: 70_000, weight: 1800 },
-  "hard-function": {
-    kind: "hard-function",
-    file: "src/x.ts",
-    line: 10,
-    symbol: "dispatch",
-    complexity: 21,
-    maxDepth: 5,
-    lines: 140,
+  barrel: {
+    chain: 3,
+    file: "src/lib/index.ts",
+    kind: "barrel",
+    uses: 12,
     weight: 36,
   },
-  "duplicate-body": {
-    kind: "duplicate-body",
+  "coverage-missing": { kind: "coverage-missing", weight: 1 },
+  "crap-bands": {
+    functions: 210,
+    kind: "crap-bands",
+    over15: 12.2,
+    over30: 4.8,
+    over5: 31.4,
+    weight: Number.MAX_SAFE_INTEGER,
+  },
+  "crap-function": {
+    complexity: 11,
+    coverage: 40,
+    crap: 37.1,
     file: "src/a.ts",
-    line: 3,
+    kind: "crap-function",
+    line: 12,
+    symbol: "parse",
+    weight: 37.1,
+  },
+  cycle: {
+    file: "src/a.ts",
+    kind: "cycle",
+    members: ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/e.ts"],
+    weight: 5,
+  },
+  "dead-export": {
+    definition: "function",
+    file: "src/a.ts",
+    kind: "dead-export",
+    line: 2,
+    symbol: "unusedThing",
+    weight: 3,
+  },
+  "duplicate-body": {
     copies: 4,
-    lines: 18,
+    file: "src/a.ts",
     files: 3,
+    kind: "duplicate-body",
+    line: 3,
+    lines: 18,
     names: ["toRow", "toCell", "toCol", "toSpan"],
     weight: 72,
   },
+  "hard-function": {
+    complexity: 21,
+    file: "src/x.ts",
+    kind: "hard-function",
+    line: 10,
+    lines: 140,
+    maxDepth: 5,
+    symbol: "dispatch",
+    weight: 36,
+  },
+  "large-file": {
+    bytes: 70_000,
+    file: "src/big.ts",
+    kind: "large-file",
+    loc: 1800,
+    weight: 1800,
+  },
   "masked-errors": {
-    kind: "masked-errors",
-    smell: "empty-catch",
     count: 6,
     file: "src/a.ts",
+    kind: "masked-errors",
     line: 4,
+    smell: "empty-catch",
     weight: 6,
   },
+  orphan: { file: "src/leftover.ts", kind: "orphan", loc: 42, weight: 42 },
+  reimplemented: {
+    alsoDefinedIn: 2,
+    file: "src/main.ts",
+    kind: "reimplemented",
+    names: ["format", "parse", "slug", "trim"],
+    weight: 4,
+  },
   "worst-masking-file": {
-    kind: "worst-masking-file",
-    file: "src/noisy.ts",
     count: 11,
+    file: "src/noisy.ts",
+    kind: "worst-masking-file",
     line: 1,
     weight: 11,
   },
-  "dead-export": {
-    kind: "dead-export",
-    file: "src/a.ts",
-    line: 2,
-    symbol: "unusedThing",
-    definition: "function",
-    weight: 3,
-  },
-  "crap-function": {
-    kind: "crap-function",
-    file: "src/a.ts",
-    line: 12,
-    symbol: "parse",
-    crap: 37.1,
-    complexity: 11,
-    coverage: 40,
-    weight: 37.1,
-  },
-  "crap-bands": {
-    kind: "crap-bands",
-    functions: 210,
-    over5: 31.4,
-    over15: 12.2,
-    over30: 4.8,
-    weight: Number.MAX_SAFE_INTEGER,
-  },
-  "coverage-missing": { kind: "coverage-missing", weight: 1 },
 };
 
-describe("renderFinding", () => {
-  it.each(Object.entries(SAMPLES))("renders %s as one non-empty line", (_kind, finding) => {
-    const line = renderFinding(finding);
+describe(renderFinding, () => {
+  it.each(Object.entries(SAMPLES))(
+    "renders %s as one non-empty line",
+    (_kind, finding) => {
+      const line = renderFinding(finding);
 
-    expect(line.trim()).not.toBe("");
-    expect(line).not.toContain("\n");
-    expect(line).not.toContain("undefined");
-  });
+      expect(line.trim()).not.toBe("");
+      expect(line).not.toContain("\n");
+      expect(line).not.toContain("undefined");
+    }
+  );
 
   it("names the symbol and both numbers for an ambiguous name", () => {
     expect(renderFinding(SAMPLES["ambiguous-name"])).toBe(
-      '"validate" is defined 9 times across 7 files',
+      '"validate" is defined 9 times across 7 files'
     );
   });
 
   it("mentions the chain only when a barrel forwards to another", () => {
     expect(renderFinding(SAMPLES.barrel)).toContain("3 re-exports deep");
     const single: Finding = {
-      kind: "barrel",
-      file: "src/lib/index.ts",
-      uses: 12,
       chain: 1,
+      file: "src/lib/index.ts",
+      kind: "barrel",
+      uses: 12,
       weight: 12,
     };
     expect(renderFinding(single)).not.toContain("re-exports deep");
@@ -133,6 +149,8 @@ describe("renderFinding", () => {
   });
 
   it("estimates tokens for a large file", () => {
-    expect(renderFinding(SAMPLES["large-file"])).toContain("20.0k tokens to read");
+    expect(renderFinding(SAMPLES["large-file"])).toContain(
+      "20.0k tokens to read"
+    );
   });
 });

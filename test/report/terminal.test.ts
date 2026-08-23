@@ -1,4 +1,5 @@
 import { describe, expect, it, onTestFinished } from "vitest";
+
 import { runAnalyzers } from "../../src/analyze/index.js";
 import type { CodeIndex } from "../../src/index/types.js";
 import { renderTerminalReport } from "../../src/report/terminal.js";
@@ -14,6 +15,7 @@ import { indexFixture } from "../helpers/index-fixture.js";
  * file count silently disagree with what was measured.
  */
 const FIXTURE = {
+  "scripts/build.ts": "console.log('build');\n",
   "src/a.ts": [
     "export function tangled(n: number): number {",
     "  let total = 0;",
@@ -38,25 +40,35 @@ const FIXTURE = {
     "",
     "export function unused() {}",
   ].join("\n"),
-  "src/b.ts": "import { tangled } from './a.js';\nexport const twice = (n: number) => tangled(n) * 2;\n",
+  "src/b.ts":
+    "import { tangled } from './a.js';\nexport const twice = (n: number) => tangled(n) * 2;\n",
   "test/a.test.ts": "import { tangled } from '../src/a.js';\ntangled(1);\n",
-  "scripts/build.ts": "console.log('build');\n",
 };
 
 async function render(options?: Parameters<typeof renderTerminalReport>[3]) {
   const index = await indexFixture(FIXTURE, onTestFinished);
   const results = runAnalyzers(index);
-  return { index, report: renderTerminalReport(index, results, scoreIndex(index, results), options) };
+  return {
+    index,
+    report: renderTerminalReport(
+      index,
+      results,
+      scoreIndex(index, results),
+      options
+    ),
+  };
 }
 
-describe("renderTerminalReport", () => {
+describe(renderTerminalReport, () => {
   it("leads with the root, the counts, and the score", async () => {
     const { index, report } = await render();
 
     expect(report).toContain(index.root);
     expect(report).toContain("2 scored files");
-    expect(report).toMatch(/SLOP \d+\/100 {2}[A-F]/);
-    expect(report).toMatch(/\d+ from metrics, [+-]\d+ for size \(\d+ lines across 2 files\)/);
+    expect(report).toMatch(/SLOP \d+\/100 {2}[A-F]/u);
+    expect(report).toMatch(
+      /\d+ from metrics, [+-]\d+ for size \(\d+ lines across 2 files\)/u
+    );
   });
 
   it("names the roles it left out of the score", async () => {
@@ -72,10 +84,16 @@ describe("renderTerminalReport", () => {
 
     expect(report).toContain("Findability — can an agent locate things?");
     expect(report).toContain("Context cost — how much must it read?");
-    expect(report).toContain("Change risk — complexity nothing tests (not scored)");
-    expect(report).toMatch(/Findability — can an agent locate things\? {2}\d+\/100/);
+    expect(report).toContain(
+      "Change risk — complexity nothing tests (not scored)"
+    );
+    expect(report).toMatch(
+      /Findability — can an agent locate things\? {2}\d+\/100/u
+    );
     // Analyzer name and its unit, on the metric's own line.
-    expect(report).toMatch(/symbol-collision +% of definitions with an ambiguous name/);
+    expect(report).toMatch(
+      /symbol-collision +% of definitions with an ambiguous name/u
+    );
   });
 
   it("renders findings as sentences under their metric", async () => {
@@ -101,16 +119,19 @@ describe("renderTerminalReport", () => {
     expect(plain).not.toContain("good ≤");
     expect(plain).toContain("Run with --why");
 
-    expect(why).toMatch(/good ≤ \d+(\.\d+)? · bad ≥ \d+(\.\d+)? · scored \d+\/100/);
+    expect(why).toMatch(
+      /good ≤ \d+(\.\d+)? · bad ≥ \d+(\.\d+)? · scored \d+\/100/u
+    );
     expect(why).not.toContain("Run with --why");
 
     // The rationale is wrapped into a paragraph rather than left as one long
     // line: every line comes out shorter than the longest reasoning string.
-    const longestReason = Math.max(...Object.values(ANCHORS).map((a) => a.rationale.length));
+    const longestReason = Math.max(
+      ...Object.values(ANCHORS).map((a) => a.rationale.length)
+    );
     const longestLine = Math.max(...why.split("\n").map((line) => line.length));
 
-    expect(longestReason).toBeGreaterThan(100);
-    expect(longestLine).toBeLessThan(longestReason);
+    expect(longestReason > 100 && longestLine < longestReason).toBeTruthy();
   });
 
   it("always says the thresholds are reasoned rather than measured", async () => {
@@ -121,10 +142,13 @@ describe("renderTerminalReport", () => {
 
   it("lists files it could not parse instead of dropping them", async () => {
     const index = await indexFixture(FIXTURE, onTestFinished);
-    const failures: CodeIndex["failures"] = Array.from({ length: 7 }, (_, i) => ({
-      path: `src/broken-${i}.ts`,
-      reason: "unreadable",
-    }));
+    const failures: CodeIndex["failures"] = Array.from(
+      { length: 7 },
+      (_, i) => ({
+        path: `src/broken-${i}.ts`,
+        reason: "unreadable",
+      })
+    );
     const withFailures: CodeIndex = { ...index, failures };
     const results = runAnalyzers(withFailures);
 
@@ -132,7 +156,7 @@ describe("renderTerminalReport", () => {
       withFailures,
       results,
       scoreIndex(withFailures, results),
-      {},
+      {}
     );
 
     expect(report).toContain("Could not parse 7 file(s)");

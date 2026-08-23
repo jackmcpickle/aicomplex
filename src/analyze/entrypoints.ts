@@ -21,11 +21,18 @@ const ENTRYPOINT_NAMES = new Set([
 
 export function isLikelyEntrypoint(filePath: string): boolean {
   const segments = filePath.split("/");
-  const filename = segments.at(-1)!;
+  const filename = segments.at(-1);
+  if (filename === undefined) {
+    return false;
+  }
   const stem = filename.slice(0, filename.lastIndexOf(".")) || filename;
 
-  if (ENTRYPOINT_NAMES.has(stem)) return true;
-  if (segments.length === 1) return true; // Sitting at the repo root.
+  if (ENTRYPOINT_NAMES.has(stem)) {
+    return true;
+  }
+  if (segments.length === 1) {
+    return true;
+  } // Sitting at the repo root.
 
   return false;
 }

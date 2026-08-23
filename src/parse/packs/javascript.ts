@@ -150,15 +150,15 @@ export const JS_IDENTIFIER_NODES = [
 ] as const;
 
 export const javascriptPack: LanguagePack = {
-  language: "javascript",
-  wasmSpecifier: "tree-sitter-javascript/tree-sitter-javascript.wasm",
-  definitions: JS_DEFINITIONS,
-  imports: JS_IMPORTS,
-  exports: JS_EXPORTS,
-  calls: JS_CALLS,
-  smells: JS_SMELLS,
   branchNodes: JS_BRANCH_NODES,
-  nestingNodes: JS_NESTING_NODES,
+  calls: JS_CALLS,
+  definitions: JS_DEFINITIONS,
+  exports: JS_EXPORTS,
   functionNodes: JS_FUNCTION_NODES,
   identifierNodes: JS_IDENTIFIER_NODES,
+  imports: JS_IMPORTS,
+  language: "javascript",
+  nestingNodes: JS_NESTING_NODES,
+  smells: JS_SMELLS,
+  wasmSpecifier: "tree-sitter-javascript/tree-sitter-javascript.wasm",
 };

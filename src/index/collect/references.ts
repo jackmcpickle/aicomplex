@@ -1,4 +1,5 @@
 import type { Tree } from "web-tree-sitter";
+
 import type { CompiledLanguage } from "../../parse/parser.js";
 import { walkTree } from "./shared.js";
 
@@ -18,7 +19,10 @@ import { walkTree } from "./shared.js";
  * cannot be un-summed afterwards: narrowing to shipped source has to drop a
  * test file's mentions, and a single merged total makes that impossible.
  */
-export function countIdentifiers(compiled: CompiledLanguage, tree: Tree): Map<string, number> {
+export function countIdentifiers(
+  compiled: CompiledLanguage,
+  tree: Tree
+): Map<string, number> {
   const identifierNodes = new Set(compiled.pack.identifierNodes);
   const counts = new Map<string, number>();
 

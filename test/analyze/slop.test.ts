@@ -1,7 +1,9 @@
 import { describe, expect, it, onTestFinished } from "vitest";
+
 import { deadExports } from "../../src/analyze/dead-exports.js";
 import { duplication } from "../../src/analyze/duplication.js";
 import { errorMasking } from "../../src/analyze/error-masking.js";
+import type { Finding } from "../../src/analyze/findings.js";
 import { functionComplexity } from "../../src/analyze/function-complexity.js";
 import { godFiles } from "../../src/analyze/god-files.js";
 import { symbolCollision } from "../../src/analyze/symbol-collision.js";
@@ -25,14 +27,14 @@ function body(prefix: string): string {
   ].join("\n");
 }
 
-describe("duplication", () => {
+describe("duplication metric", () => {
   it("scores zero when every body is structurally distinct", async () => {
     const index = await indexFixture(
       {
         "src/a.ts": `export function a(aInput: number[]) {\n${body("a")}\n}`,
         "src/b.ts": "export function b() { return 1; }",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(duplication.run(scopeIndex(index)).metric).toBe(0);
@@ -44,16 +46,16 @@ describe("duplication", () => {
         "src/a.ts": `export function alpha(aInput: number[]) {\n${body("a")}\n}`,
         "src/b.ts": `export function beta(zInput: number[]) {\n${body("z")}\n}`,
       },
-      onTestFinished,
+      onTestFinished
     );
 
     const result = duplication.run(scopeIndex(index));
 
     expect(result.metric).toBe(100);
     expect(result.findings[0]).toMatchObject({
-      kind: "duplicate-body",
       copies: 2,
       files: 2,
+      kind: "duplicate-body",
     });
   });
 
@@ -64,7 +66,7 @@ describe("duplication", () => {
         "src/b.ts": "export function b() { return 2; }",
         "src/c.ts": "export function c() { return 3; }",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(duplication.run(scopeIndex(index)).metric).toBe(0);
@@ -75,9 +77,10 @@ describe("error-masking", () => {
   it("scores zero on code that handles its errors", async () => {
     const index = await indexFixture(
       {
-        "src/a.ts": "export function a() {\n  try { risky(); } catch (e) { report(e); }\n}",
+        "src/a.ts":
+          "export function a() {\n  try { risky(); } catch (e) { report(e); }\n}",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(errorMasking.run(scopeIndex(index)).metric).toBe(0);
@@ -85,46 +88,52 @@ describe("error-masking", () => {
 
   it("flags a catch block that discards the error", async () => {
     const index = await indexFixture(
-      { "src/a.ts": "export function a() {\n  try { risky(); } catch (e) {}\n}" },
-      onTestFinished,
+      {
+        "src/a.ts": "export function a() {\n  try { risky(); } catch (e) {}\n}",
+      },
+      onTestFinished
     );
 
     const result = errorMasking.run(scopeIndex(index));
 
     expect(result.metric).toBeGreaterThan(0);
     expect(result.findings).toContainEqual(
-      expect.objectContaining({ kind: "masked-errors", smell: "empty-catch" }),
+      expect.objectContaining({ kind: "masked-errors", smell: "empty-catch" })
     );
   });
 
   it("flags a Python except clause whose body only passes", async () => {
     const index = await indexFixture(
-      { "app/main.py": "def run():\n    try:\n        risky()\n    except Exception:\n        pass\n" },
-      onTestFinished,
+      {
+        "app/main.py":
+          "def run():\n    try:\n        risky()\n    except Exception:\n        pass\n",
+      },
+      onTestFinished
     );
 
     expect(errorMasking.run(scopeIndex(index)).findings).toContainEqual(
-      expect.objectContaining({ kind: "masked-errors", smell: "bare-except" }),
+      expect.objectContaining({ kind: "masked-errors", smell: "bare-except" })
     );
   });
 
   it("flags linter and type-checker suppressions", async () => {
     const index = await indexFixture(
       {
-        "src/a.ts": "// @ts-ignore\nexport const a = 1;\n// eslint-disable-next-line\nexport const b = 2;",
+        "src/a.ts":
+          "// @ts-ignore\nexport const a = 1;\n// eslint-disable-next-line\nexport const b = 2;",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(errorMasking.run(scopeIndex(index)).findings).toContainEqual(
-      expect.objectContaining({ kind: "masked-errors", count: 2 }),
+      expect.objectContaining({ count: 2, kind: "masked-errors" })
     );
   });
 
   it("does not flag ordinary comments", async () => {
     const index = await indexFixture(
       { "src/a.ts": "// this explains the next line\nexport const a = 1;" },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(errorMasking.run(scopeIndex(index)).metric).toBe(0);
@@ -133,11 +142,11 @@ describe("error-masking", () => {
   it("flags `any` as switching off type checking", async () => {
     const index = await indexFixture(
       { "src/a.ts": "export function a(input: any) { return input; }" },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(errorMasking.run(scopeIndex(index)).findings).toContainEqual(
-      expect.objectContaining({ kind: "masked-errors", smell: "any-type" }),
+      expect.objectContaining({ kind: "masked-errors", smell: "any-type" })
     );
   });
 });
@@ -146,10 +155,11 @@ describe("dead-exports", () => {
   it("scores zero when every export is used", async () => {
     const index = await indexFixture(
       {
+        "src/main.ts":
+          "import { helper } from './util.js';\nexport function main() { return helper(); }",
         "src/util.ts": "export function helper() { return 1; }",
-        "src/main.ts": "import { helper } from './util.js';\nexport function main() { return helper(); }",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(deadExports.run(scopeIndex(index)).metric).toBe(0);
@@ -158,10 +168,12 @@ describe("dead-exports", () => {
   it("flags an export nothing references", async () => {
     const index = await indexFixture(
       {
-        "src/util.ts": "export function helper() { return 1; }\nexport function unused() { return 2; }",
-        "src/main.ts": "import { helper } from './util.js';\nexport function main() { return helper(); }",
+        "src/main.ts":
+          "import { helper } from './util.js';\nexport function main() { return helper(); }",
+        "src/util.ts":
+          "export function helper() { return 1; }\nexport function unused() { return 2; }",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     const result = deadExports.run(scopeIndex(index));
@@ -174,28 +186,39 @@ describe("dead-exports", () => {
   it("treats an export used only by a barrel as alive", async () => {
     const index = await indexFixture(
       {
-        "src/util.ts": "export function helper() { return 1; }",
         "src/index.ts": "export { helper } from './util.js';",
+        "src/util.ts": "export function helper() { return 1; }",
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    expect(deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)).not.toContain("helper");
+    expect(
+      deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)
+    ).not.toContain("helper");
   });
 });
 
-describe("god-files", () => {
-  const lines = (n: number, prefix: string) =>
-    Array.from({ length: n }, (_, i) => `export const ${prefix}${i} = ${i};`).join("\n");
+const lines = (n: number, prefix: string) =>
+  Array.from(
+    { length: n },
+    (_, i) => `export const ${prefix}${i} = ${i};`
+  ).join("\n");
 
+describe("god-files", () => {
   it("reports the size of a small codebase's files", async () => {
-    const index = await indexFixture({ "src/a.ts": lines(50, "a") }, onTestFinished);
+    const index = await indexFixture(
+      { "src/a.ts": lines(50, "a") },
+      onTestFinished
+    );
 
     expect(godFiles.run(scopeIndex(index)).metric).toBe(50);
   });
 
   it("reports zero when there is nothing to measure", async () => {
-    const index = await indexFixture({ "README.md": "# nothing" }, onTestFinished);
+    const index = await indexFixture(
+      { "README.md": "# nothing" },
+      onTestFinished
+    );
 
     expect(godFiles.run(scopeIndex(index)).metric).toBe(0);
   });
@@ -205,10 +228,13 @@ describe("god-files", () => {
       {
         "src/big.ts": lines(600, "v"),
         ...Object.fromEntries(
-          Array.from({ length: 8 }, (_, i) => [`src/small${i}.ts`, lines(25, `s${i}_`)]),
+          Array.from({ length: 8 }, (_, i) => [
+            `src/small${i}.ts`,
+            lines(25, `s${i}_`),
+          ])
         ),
       },
-      onTestFinished,
+      onTestFinished
     );
 
     // 800 lines total; the 400th lives in big.ts, not in one of the small ones.
@@ -218,17 +244,18 @@ describe("god-files", () => {
   it("names the largest files, with a token estimate", async () => {
     const index = await indexFixture(
       { "src/big.ts": lines(600, "v"), "src/small.ts": lines(20, "s") },
-      onTestFinished,
+      onTestFinished
     );
 
     const result = godFiles.run(scopeIndex(index));
 
-    expect(result.findings[0]?.file).toBe("src/big.ts");
-    expect(result.findings[0]).toMatchObject({
-      kind: "large-file",
-      loc: expect.any(Number),
-      bytes: expect.any(Number),
-    });
+    const finding = result.findings.find(
+      (entry): entry is Extract<Finding, { kind: "large-file" }> =>
+        entry.kind === "large-file"
+    );
+    expect(finding?.file).toBe("src/big.ts");
+    expect(finding?.bytes).toBeTypeOf("number");
+    expect(finding?.loc).toBeTypeOf("number");
     expect(result.findings.map((f) => f.file)).not.toContain("src/small.ts");
   });
 });
@@ -237,7 +264,7 @@ describe("function-complexity", () => {
   it("scores zero on straightforward functions", async () => {
     const index = await indexFixture(
       { "src/a.ts": "export function a(n: number) { return n + 1; }" },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(functionComplexity.run(scopeIndex(index)).metric).toBe(0);
@@ -260,34 +287,37 @@ describe("function-complexity", () => {
           "}",
         ].join("\n"),
       },
-      onTestFinished,
+      onTestFinished
     );
 
     const result = functionComplexity.run(scopeIndex(index));
 
+    const finding = result.findings.find(
+      (entry): entry is Extract<Finding, { kind: "hard-function" }> =>
+        entry.kind === "hard-function"
+    );
     expect(result.metric).toBe(100);
-    expect(result.findings[0]).toMatchObject({
-      kind: "hard-function",
-      maxDepth: expect.any(Number),
-      complexity: expect.any(Number),
-    });
+    expect(finding?.complexity).toBeTypeOf("number");
+    expect(finding?.maxDepth).toBeTypeOf("number");
   });
 
   it("does not treat an else-if chain as nesting", async () => {
     const branches = Array.from(
       { length: 30 },
-      (_, i) => `  ${i === 0 ? "if" : "else if"} (n === ${i}) { return ${i}; }`,
+      (_, i) => `  ${i === 0 ? "if" : "else if"} (n === ${i}) { return ${i}; }`
     ).join("\n");
 
     const index = await indexFixture(
-      { "src/a.ts": `export function dispatch(n: number) {\n${branches}\n  return -1;\n}` },
-      onTestFinished,
+      {
+        "src/a.ts": `export function dispatch(n: number) {\n${branches}\n  return -1;\n}`,
+      },
+      onTestFinished
     );
 
-    const fn = index.functions.find((f) => f.name === "dispatch")!;
+    const fn = index.functions.find((f) => f.name === "dispatch");
 
-    expect(fn.maxDepth).toBe(1);
-    expect(fn.complexity).toBeGreaterThan(20); // Still branchy, just not deep.
+    expect(fn?.maxDepth).toBe(1);
+    expect(fn?.complexity).toBeGreaterThan(20); // Still branchy, just not deep.
   });
 
   it("counts genuine nesting", async () => {
@@ -305,10 +335,10 @@ describe("function-complexity", () => {
           "}",
         ].join("\n"),
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    expect(index.functions.find((f) => f.name === "nested")!.maxDepth).toBe(4);
+    expect(index.functions.find((f) => f.name === "nested")?.maxDepth).toBe(4);
   });
 
   it("attributes a nested helper's branches to the helper, not its parent", async () => {
@@ -324,13 +354,13 @@ describe("function-complexity", () => {
           "}",
         ].join("\n"),
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    const outer = index.functions.find((fn) => fn.name === "outer")!;
+    const outer = index.functions.find((fn) => fn.name === "outer");
 
-    expect(outer.complexity).toBe(1);
-    expect(outer.maxDepth).toBe(0);
+    expect(outer?.complexity).toBe(1);
+    expect(outer?.maxDepth).toBe(0);
   });
 });
 
@@ -339,12 +369,15 @@ describe("dead-exports — reference forms", () => {
     const index = await indexFixture(
       {
         "src/types.ts": "export type Finding = { message: string };",
-        "src/use.ts": "import type { Finding } from './types.js';\nexport function a(f: Finding) { return f; }",
+        "src/use.ts":
+          "import type { Finding } from './types.js';\nexport function a(f: Finding) { return f; }",
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    expect(deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)).not.toContain("Finding");
+    expect(
+      deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)
+    ).not.toContain("Finding");
   });
 
   it("treats a type used in an annotation inside its own module as alive", async () => {
@@ -354,12 +387,15 @@ describe("dead-exports — reference forms", () => {
           "export type Finding = { message: string };",
           "export type Result = { findings: Finding[] };",
         ].join("\n"),
-        "src/use.ts": "import type { Result } from './types.js';\nexport function a(r: Result) { return r; }",
+        "src/use.ts":
+          "import type { Result } from './types.js';\nexport function a(r: Result) { return r; }",
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    expect(deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)).not.toContain("Finding");
+    expect(
+      deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)
+    ).not.toContain("Finding");
   });
 
   it("still flags a type nothing mentions at all", async () => {
@@ -368,10 +404,12 @@ describe("dead-exports — reference forms", () => {
         "src/types.ts": "export type Orphaned = { message: string };",
         "src/use.ts": "export function a() { return 1; }",
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    expect(deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)).toContain("Orphaned");
+    expect(
+      deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)
+    ).toContain("Orphaned");
   });
 });
 
@@ -383,7 +421,7 @@ describe("symbol-collision — interface methods", () => {
         "src/b.ts": "export class B { run() { return 2; } }",
         "src/c.ts": "export class C { run() { return 3; } }",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(symbolCollision.run(scopeIndex(index)).metric).toBe(0);
@@ -395,7 +433,7 @@ describe("symbol-collision — interface methods", () => {
         "src/a.ts": "export function run() { return 1; }",
         "src/b.ts": "export function run() { return 2; }",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(symbolCollision.run(scopeIndex(index)).metric).toBe(100);

@@ -1,7 +1,7 @@
 import type { ScoredIndex } from "../index/scope.js";
 import type { SmellKind } from "../parse/language-pack.js";
 import type { Finding } from "./findings.js";
-import { type Analyzer } from "./types.js";
+import type { Analyzer } from "./types.js";
 
 /**
  * Constructs that hide a problem rather than handle it.
@@ -15,13 +15,16 @@ import { type Analyzer } from "./types.js";
  * repo and a large one.
  */
 export const errorMasking: Analyzer = {
+  describe:
+    "Silenced errors, blanket ignores and escape-hatch types per 1k lines",
   name: "error-masking",
   pillar: "slop",
-  describe: "Silenced errors, blanket ignores and escape-hatch types per 1k lines",
-
   run(index: ScoredIndex) {
-    const smells = index.smells;
-    const loc = [...index.files.values()].reduce((sum, file) => sum + file.loc, 0);
+    const { smells } = index;
+    const loc = [...index.files.values()].reduce(
+      (sum, file) => sum + file.loc,
+      0
+    );
 
     const byKind = new Map<SmellKind, number>();
     const byFile = new Map<string, number>();
@@ -30,20 +33,27 @@ export const errorMasking: Analyzer = {
       byFile.set(smell.file, (byFile.get(smell.file) ?? 0) + 1);
     }
 
-    const findings: Finding[] = [...byKind.entries()].map(([kind, count]) => {
-      const first = smells.find((smell) => smell.kind === kind)!;
-      return {
-        kind: "masked-errors",
-        smell: kind,
-        count,
-        file: first.file,
-        line: first.line,
-        weight: count,
-      };
-    });
+    const findings: Finding[] = [...byKind.entries()].flatMap(
+      ([kind, count]) => {
+        const first = smells.find((smell) => smell.kind === kind);
+        if (first === undefined) {
+          return [];
+        }
+        return [
+          {
+            kind: "masked-errors",
+            smell: kind,
+            count,
+            file: first.file,
+            line: first.line,
+            weight: count,
+          },
+        ];
+      }
+    );
 
-    const worstFile = [...byFile.entries()].sort((a, b) => b[1] - a[1])[0];
-    if (worstFile && worstFile[1] > 1) {
+    const [worstFile] = [...byFile.entries()].toSorted((a, b) => b[1] - a[1]);
+    if (worstFile !== undefined && worstFile[1] > 1) {
       findings.push({
         kind: "worst-masking-file",
         file: worstFile[0],

@@ -23,9 +23,22 @@ const PY_EXPORTS = `
 `;
 
 export const pythonPack: LanguagePack = {
-  language: "python",
-  wasmSpecifier: "tree-sitter-python/tree-sitter-python.wasm",
-
+  branchNodes: [
+    "if_statement",
+    "elif_clause",
+    "else_clause",
+    "for_statement",
+    "while_statement",
+    "except_clause",
+    "conditional_expression",
+    "boolean_operator",
+    "case_clause",
+    "assert_statement",
+  ],
+  calls: `
+(call function: (identifier) @call.name)
+(call function: (attribute attribute: (identifier) @call.name))
+`,
   definitions: `
 (function_definition name: (identifier) @name) @definition.function
 
@@ -39,7 +52,9 @@ export const pythonPack: LanguagePack = {
   body: (block
     (function_definition name: (identifier) @name))) @definition.method
 `,
-
+  exports: PY_EXPORTS,
+  functionNodes: ["function_definition", "lambda"],
+  identifierNodes: ["identifier"],
   imports: `
 (import_statement name: (dotted_name) @import.source) @import.static
 (import_statement name: (aliased_import name: (dotted_name) @import.source)) @import.static
@@ -53,32 +68,7 @@ export const pythonPack: LanguagePack = {
 (import_from_statement
   name: (aliased_import alias: (identifier) @import.name))
 `,
-
-  exports: PY_EXPORTS,
-
-  calls: `
-(call function: (identifier) @call.name)
-(call function: (attribute attribute: (identifier) @call.name))
-`,
-
-  smells: `
-(except_clause) @smell.bare-except
-(comment) @smell.ignore-comment
-`,
-
-  branchNodes: [
-    "if_statement",
-    "elif_clause",
-    "else_clause",
-    "for_statement",
-    "while_statement",
-    "except_clause",
-    "conditional_expression",
-    "boolean_operator",
-    "case_clause",
-    "assert_statement",
-  ],
-
+  language: "python",
   nestingNodes: [
     "if_statement",
     "for_statement",
@@ -86,8 +76,9 @@ export const pythonPack: LanguagePack = {
     "with_statement",
     "try_statement",
   ],
-
-  functionNodes: ["function_definition", "lambda"],
-
-  identifierNodes: ["identifier"],
+  smells: `
+(except_clause) @smell.bare-except
+(comment) @smell.ignore-comment
+`,
+  wasmSpecifier: "tree-sitter-python/tree-sitter-python.wasm",
 };

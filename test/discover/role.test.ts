@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+
 import { detectRole } from "../../src/discover/role.js";
 
-describe("detectRole", () => {
+describe(detectRole, () => {
   it.each([
     ["src/index.ts", "source"],
     ["packages/zod/src/v4/core/schemas.ts", "source"],

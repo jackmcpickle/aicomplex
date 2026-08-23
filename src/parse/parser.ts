@@ -1,5 +1,7 @@
 import { createRequire } from "node:module";
+
 import { Language as TSLanguage, Parser, Query } from "web-tree-sitter";
+
 import type { Language } from "../discover/detect.js";
 import type { LanguagePack } from "./language-pack.js";
 import { goPack } from "./packs/go.js";
@@ -10,14 +12,14 @@ import { tsxPack, typescriptPack } from "./packs/typescript.js";
 const require = createRequire(import.meta.url);
 
 const PACKS: Record<Language, LanguagePack> = {
-  typescript: typescriptPack,
-  tsx: tsxPack,
+  go: goPack,
   javascript: javascriptPack,
   python: pythonPack,
-  go: goPack,
+  tsx: tsxPack,
+  typescript: typescriptPack,
 };
 
-export type CompiledLanguage = {
+export interface CompiledLanguage {
   pack: LanguagePack;
   parser: Parser;
   queries: {
@@ -27,7 +29,7 @@ export type CompiledLanguage = {
     calls: Query;
     smells: Query;
   };
-};
+}
 
 let initialised: Promise<void> | null = null;
 const compiled = new Map<Language, Promise<CompiledLanguage>>();
@@ -38,13 +40,15 @@ const compiled = new Map<Language, Promise<CompiledLanguage>>();
  * Loading is lazy and per-language: scanning a pure-Python repo never pays to
  * load the TypeScript grammar. Concurrent callers share one in-flight promise.
  */
-export function getLanguage(language: Language): Promise<CompiledLanguage> {
+export async function getLanguage(
+  language: Language
+): Promise<CompiledLanguage> {
   let existing = compiled.get(language);
   if (!existing) {
     existing = compile(language);
     compiled.set(language, existing);
   }
-  return existing;
+  return await existing;
 }
 
 async function compile(language: Language): Promise<CompiledLanguage> {
@@ -61,10 +65,10 @@ async function compile(language: Language): Promise<CompiledLanguage> {
     pack,
     parser,
     queries: {
-      definitions: buildQuery(grammar, pack, "definitions"),
-      imports: buildQuery(grammar, pack, "imports"),
-      exports: buildQuery(grammar, pack, "exports"),
       calls: buildQuery(grammar, pack, "calls"),
+      definitions: buildQuery(grammar, pack, "definitions"),
+      exports: buildQuery(grammar, pack, "exports"),
+      imports: buildQuery(grammar, pack, "imports"),
       smells: buildQuery(grammar, pack, "smells"),
     },
   };
@@ -80,14 +84,14 @@ async function compile(language: Language): Promise<CompiledLanguage> {
 function buildQuery(
   grammar: TSLanguage,
   pack: LanguagePack,
-  name: "definitions" | "imports" | "exports" | "calls" | "smells",
+  name: "definitions" | "imports" | "exports" | "calls" | "smells"
 ): Query {
   try {
     return new Query(grammar, pack[name]);
-  } catch (cause) {
+  } catch (error) {
     throw new Error(
       `aicc: the "${name}" query for ${pack.language} does not compile against its grammar`,
-      { cause },
+      { cause: error }
     );
   }
 }

@@ -1,6 +1,7 @@
-import type { FunctionNode } from "../index/types.js";
 import type { ScoredIndex } from "../index/scope.js";
-import { percent, type Analyzer } from "./types.js";
+import type { FunctionNode } from "../index/types.js";
+import { percent } from "./types.js";
+import type { Analyzer } from "./types.js";
 
 /**
  * Function bodies that are structurally identical to another body.
@@ -15,20 +16,22 @@ import { percent, type Analyzer } from "./types.js";
  * produce most.
  */
 export const duplication: Analyzer = {
+  describe: "Share of function bodies with a structural twin elsewhere",
   name: "duplication",
   pillar: "slop",
-  describe: "Share of function bodies with a structural twin elsewhere",
-
   run(index: ScoredIndex) {
     const candidates = index.functions.filter(
-      (fn) => fn.shapeSize >= MIN_SHAPE_SIZE,
+      (fn) => fn.shapeSize >= MIN_SHAPE_SIZE
     );
 
     const byShape = new Map<string, FunctionNode[]>();
     for (const fn of candidates) {
       const bucket = byShape.get(fn.shapeHash);
-      if (bucket) bucket.push(fn);
-      else byShape.set(fn.shapeHash, [fn]);
+      if (bucket) {
+        bucket.push(fn);
+      } else {
+        byShape.set(fn.shapeHash, [fn]);
+      }
     }
 
     const clusters = [...byShape.values()].filter((group) => group.length > 1);
@@ -37,16 +40,24 @@ export const duplication: Analyzer = {
     return {
       metric: percent(duplicated, candidates.length),
       unit: "% of function bodies duplicated elsewhere",
-      findings: clusters.map((group) => ({
-        kind: "duplicate-body" as const,
-        file: group[0]!.file,
-        line: group[0]!.startLine,
-        copies: group.length,
-        lines: group[0]!.lines,
-        files: new Set(group.map((fn) => fn.file)).size,
-        names: [...new Set(group.map((fn) => fn.name))],
-        weight: group.length * group[0]!.lines,
-      })),
+      findings: clusters.flatMap((group) => {
+        const [representative] = group;
+        if (representative === undefined) {
+          return [];
+        }
+        return [
+          {
+            kind: "duplicate-body" as const,
+            file: representative.file,
+            line: representative.startLine,
+            copies: group.length,
+            lines: representative.lines,
+            files: new Set(group.map((fn) => fn.file)).size,
+            names: [...new Set(group.map((fn) => fn.name))],
+            weight: group.length * representative.lines,
+          },
+        ];
+      }),
     };
   },
 };

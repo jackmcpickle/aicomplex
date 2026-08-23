@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+
 import type { Coverage } from "../discover/lcov.js";
 import type { DiscoveredFile } from "../discover/walk.js";
 import { getLanguage } from "../parse/parser.js";
@@ -21,20 +22,20 @@ import type { CodeIndex, FileNode } from "./types.js";
 export async function buildIndex(
   root: string,
   files: DiscoveredFile[],
-  coverage: Coverage | null = null,
+  coverage: Coverage | null = null
 ): Promise<CodeIndex> {
   const index: CodeIndex = {
-    root,
+    calls: [],
+    coverage,
+    failures: [],
     files: new Map(),
-    symbols: new Map(),
-    symbolsByName: new Map(),
+    functions: [],
     identifierCounts: new Map(),
     imports: [],
-    calls: [],
-    functions: [],
+    root,
     smells: [],
-    failures: [],
-    coverage,
+    symbols: new Map(),
+    symbolsByName: new Map(),
   };
 
   const knownFiles = new Set(files.map((file) => file.path));
@@ -52,8 +53,11 @@ export async function buildIndex(
 
   for (const symbol of index.symbols.values()) {
     const bucket = index.symbolsByName.get(symbol.name);
-    if (bucket) bucket.push(symbol.id);
-    else index.symbolsByName.set(symbol.name, [symbol.id]);
+    if (bucket) {
+      bucket.push(symbol.id);
+    } else {
+      index.symbolsByName.set(symbol.name, [symbol.id]);
+    }
   }
 
   return index;
@@ -62,24 +66,36 @@ export async function buildIndex(
 async function indexFile(
   index: CodeIndex,
   file: DiscoveredFile,
-  knownFiles: ReadonlySet<string>,
+  knownFiles: ReadonlySet<string>
 ): Promise<void> {
-  const source = await readFile(file.absPath, "utf8");
+  const source = await readFile(file.absPath, "utf-8");
   const compiled = await getLanguage(file.language);
 
   const tree = compiled.parser.parse(source);
-  if (!tree) throw new Error("tree-sitter returned no tree");
+  if (!tree) {
+    throw new Error("tree-sitter returned no tree");
+  }
 
   try {
     index.files.set(file.path, toFileNode(file, source));
 
     const exported = collectExportedNames(compiled, tree);
-    const symbols = collectSymbols(compiled, tree, file.path, file.language, exported);
-    for (const symbol of symbols) index.symbols.set(symbol.id, symbol);
+    const symbols = collectSymbols(
+      compiled,
+      tree,
+      file.path,
+      file.language,
+      exported
+    );
+    for (const symbol of symbols) {
+      index.symbols.set(symbol.id, symbol);
+    }
 
     index.imports.push(...collectImports(compiled, tree, file, knownFiles));
     index.calls.push(...collectCalls(compiled, tree, file.path, symbols));
-    index.functions.push(...collectFunctions(compiled.pack, tree, file.path, symbols));
+    index.functions.push(
+      ...collectFunctions(compiled.pack, tree, file.path, symbols)
+    );
     index.smells.push(...collectSmells(compiled, tree, file.path));
     index.identifierCounts.set(file.path, countIdentifiers(compiled, tree));
   } finally {
@@ -90,12 +106,12 @@ async function indexFile(
 function toFileNode(file: DiscoveredFile, source: string): FileNode {
   const lines = source.split("\n");
   return {
-    path: file.path,
-    language: file.language,
     bytes: file.bytes,
+    hash: createHash("sha256").update(source).digest("hex"),
+    language: file.language,
     lines: lines.length,
     loc: lines.filter((line) => line.trim() !== "").length,
+    path: file.path,
     role: file.role,
-    hash: createHash("sha256").update(source).digest("hex"),
   };
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it, onTestFinished } from "vitest";
+
 import { runAnalyzers } from "../../src/analyze/index.js";
 import type { AnalyzerResult } from "../../src/analyze/types.js";
 import type { CodeIndex } from "../../src/index/types.js";
@@ -8,7 +9,9 @@ import { indexFixture } from "../helpers/index-fixture.js";
 /** An index carrying nothing but a line count, for testing the size term. */
 function indexOfSize(loc: number): CodeIndex {
   return {
-    root: ".",
+    calls: [],
+    coverage: null,
+    failures: [],
     files: new Map([
       [
         "src/a.ts",
@@ -23,25 +26,29 @@ function indexOfSize(loc: number): CodeIndex {
         },
       ],
     ]),
-    symbols: new Map(),
-    symbolsByName: new Map(),
+    functions: [],
     identifierCounts: new Map(),
     imports: [],
-    calls: [],
-    functions: [],
+    root: ".",
     smells: [],
-    failures: [],
-    coverage: null,
+    symbols: new Map(),
+    symbolsByName: new Map(),
   };
 }
 
 function results(metric: number): AnalyzerResult[] {
   return [
-    { analyzer: "duplication", pillar: "slop", metric, unit: "%", findings: [] },
+    {
+      analyzer: "duplication",
+      findings: [],
+      metric,
+      pillar: "slop",
+      unit: "%",
+    },
   ];
 }
 
-describe("severityOf", () => {
+describe(severityOf, () => {
   it("scores nothing at or below the good anchor", () => {
     expect(severityOf("duplication", 0)).toBe(0);
     expect(severityOf("duplication", 2)).toBe(0);
@@ -61,14 +68,15 @@ describe("severityOf", () => {
   });
 });
 
-describe("scoreIndex", () => {
+describe(scoreIndex, () => {
   it("scores a clean codebase at zero", async () => {
     const index = await indexFixture(
       {
-        "src/index.ts": "import { helper } from './util.js';\nexport const run = () => helper();",
+        "src/index.ts":
+          "import { helper } from './util.js';\nexport const run = () => helper();",
         "src/util.ts": "export function helper() { return 1; }",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     const score = scoreIndex(index, runAnalyzers(index));
@@ -79,10 +87,34 @@ describe("scoreIndex", () => {
 
   it("keeps the score inside 0–100 even when every metric is maxed", () => {
     const maxed: AnalyzerResult[] = [
-      { analyzer: "symbol-collision", pillar: "findability", metric: 100, unit: "%", findings: [] },
-      { analyzer: "import-cycles", pillar: "traceability", metric: 100, unit: "%", findings: [] },
-      { analyzer: "god-files", pillar: "context-cost", metric: 100, unit: "%", findings: [] },
-      { analyzer: "duplication", pillar: "slop", metric: 100, unit: "%", findings: [] },
+      {
+        analyzer: "symbol-collision",
+        findings: [],
+        metric: 100,
+        pillar: "findability",
+        unit: "%",
+      },
+      {
+        analyzer: "import-cycles",
+        findings: [],
+        metric: 100,
+        pillar: "traceability",
+        unit: "%",
+      },
+      {
+        analyzer: "god-files",
+        findings: [],
+        metric: 100,
+        pillar: "context-cost",
+        unit: "%",
+      },
+      {
+        analyzer: "duplication",
+        findings: [],
+        metric: 100,
+        pillar: "slop",
+        unit: "%",
+      },
     ];
 
     const score = scoreIndex(indexOfSize(500_000), maxed);
@@ -93,7 +125,7 @@ describe("scoreIndex", () => {
   });
 
   it("weights the same problems higher in a larger codebase", () => {
-    const small = scoreIndex(indexOfSize(1_000), results(25));
+    const small = scoreIndex(indexOfSize(1000), results(25));
     const large = scoreIndex(indexOfSize(1_000_000), results(25));
 
     expect(large.base).toBe(small.base); // Same metrics.
@@ -103,7 +135,7 @@ describe("scoreIndex", () => {
   it("charges a large codebase for its size even with no defects", () => {
     const clean = results(0);
 
-    expect(scoreIndex(indexOfSize(1_000), clean).score).toBe(0);
+    expect(scoreIndex(indexOfSize(1000), clean).score).toBe(0);
     expect(scoreIndex(indexOfSize(1_000_000), clean).score).toBeGreaterThan(5);
   });
 
@@ -116,7 +148,7 @@ describe("scoreIndex", () => {
   });
 
   it("gives a small codebase the benefit of the doubt", () => {
-    const score = scoreIndex(indexOfSize(1_000), results(25));
+    const score = scoreIndex(indexOfSize(1000), results(25));
 
     expect(score.size.factor).toBe(0);
     expect(score.score).toBeLessThan(score.base);
@@ -137,11 +169,17 @@ describe("scoreIndex", () => {
   it("never improves the grade as a metric gets worse", () => {
     const order = ["A", "B", "C", "D", "F"];
     const grades = [0, 5, 10, 15, 20, 25, 40].map(
-      (metric) => scoreIndex(indexOfSize(10_000), results(metric)).grade,
+      (metric) => scoreIndex(indexOfSize(10_000), results(metric)).grade
     );
 
-    for (let i = 1; i < grades.length; i++) {
-      expect(order.indexOf(grades[i]!)).toBeGreaterThanOrEqual(order.indexOf(grades[i - 1]!));
+    for (let i = 1; i < grades.length; i += 1) {
+      const current = grades[i];
+      const previous = grades[i - 1];
+      expect(
+        current === undefined ? -1 : order.indexOf(current)
+      ).toBeGreaterThanOrEqual(
+        previous === undefined ? -1 : order.indexOf(previous)
+      );
     }
   });
 
@@ -149,23 +187,22 @@ describe("scoreIndex", () => {
     // duplication maps 2% → 0 severity and 25% → 100, so these raw values land
     // at roughly 10, 25, 40, 60 and 85 before the size adjustment.
     const grades = [4.3, 7.75, 11.2, 15.8, 21.6].map(
-      (metric) => scoreIndex(indexOfSize(10_000), results(metric)).grade,
+      (metric) => scoreIndex(indexOfSize(10_000), results(metric)).grade
     );
 
-    expect(grades).toEqual(["A", "B", "C", "D", "F"]);
+    expect(grades).toStrictEqual(["A", "B", "C", "D", "F"]);
   });
 });
 
 describe("anchor reasoning", () => {
   it("carries the anchor pair and its rationale with every metric", () => {
-    const [metric] = scoreIndex(indexOfSize(1000), results(13.5)).pillars[0]!.metrics;
+    const [metric] =
+      scoreIndex(indexOfSize(1000), results(13.5)).pillars[0]?.metrics ?? [];
 
-    expect(metric).toMatchObject({
-      analyzer: "duplication",
-      good: 2,
-      bad: 25,
-      why: expect.stringContaining("GitClear"),
-    });
+    expect(metric?.analyzer).toBe("duplication");
+    expect(metric?.bad).toBe(25);
+    expect(metric?.good).toBe(2);
+    expect(metric?.why).toContain("GitClear");
   });
 
   it("explains every metric it scores", () => {
@@ -173,8 +210,8 @@ describe("anchor reasoning", () => {
 
     for (const pillar of score.pillars) {
       for (const metric of pillar.metrics) {
-        expect(metric.why.length, metric.analyzer).toBeGreaterThan(20);
-        expect(metric.bad, metric.analyzer).toBeGreaterThan(metric.good);
+        expect(metric.why.length).toBeGreaterThan(20);
+        expect(metric.bad).toBeGreaterThan(metric.good);
       }
     }
   });

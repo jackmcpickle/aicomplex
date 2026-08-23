@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
+
 import type { Node, Tree } from "web-tree-sitter";
+
 import type { LanguagePack } from "../../parse/language-pack.js";
 import type { FunctionNode, SymbolNode } from "../types.js";
 import { enclosingSymbol, walkTree } from "./shared.js";
@@ -14,32 +16,37 @@ export function collectFunctions(
   pack: LanguagePack,
   tree: Tree,
   filePath: string,
-  symbols: readonly SymbolNode[],
+  symbols: readonly SymbolNode[]
 ): FunctionNode[] {
   const sets: NodeSets = {
-    functionNodes: new Set(pack.functionNodes),
     branchNodes: new Set(pack.branchNodes),
+    functionNodes: new Set(pack.functionNodes),
     nestingNodes: new Set(pack.nestingNodes),
   };
   const functions: FunctionNode[] = [];
 
   walkTree(tree.rootNode, (node) => {
-    if (!sets.functionNodes.has(node.type)) return true;
+    if (!sets.functionNodes.has(node.type)) {
+      return true;
+    }
 
     const measured = measureBody(node, sets);
     const symbol = enclosingSymbol(symbols, node.startIndex);
 
     functions.push({
-      file: filePath,
-      symbol: symbol?.id ?? null,
-      name: symbol?.name ?? "<anonymous>",
-      startLine: node.startPosition.row + 1,
-      endLine: node.endPosition.row + 1,
-      lines: node.endPosition.row - node.startPosition.row + 1,
       complexity: measured.complexity,
+      endLine: node.endPosition.row + 1,
+      file: filePath,
+      lines: node.endPosition.row - node.startPosition.row + 1,
       maxDepth: measured.maxDepth,
-      shapeHash: createHash("sha256").update(measured.shape.join(",")).digest("hex").slice(0, 32),
+      name: symbol?.name ?? "<anonymous>",
+      shapeHash: createHash("sha256")
+        .update(measured.shape.join(","))
+        .digest("hex")
+        .slice(0, 32),
       shapeSize: measured.shape.length,
+      startLine: node.startPosition.row + 1,
+      symbol: symbol?.id ?? null,
     });
 
     return true; // Keep descending: nested functions are functions too.
@@ -48,13 +55,17 @@ export function collectFunctions(
   return functions;
 }
 
-type NodeSets = {
+interface NodeSets {
   functionNodes: ReadonlySet<string>;
   branchNodes: ReadonlySet<string>;
   nestingNodes: ReadonlySet<string>;
-};
+}
 
-type Measured = { complexity: number; maxDepth: number; shape: string[] };
+interface Measured {
+  complexity: number;
+  maxDepth: number;
+  shape: string[];
+}
 
 /**
  * Walks one function body.
@@ -68,15 +79,19 @@ function measureBody(root: Node, sets: NodeSets): Measured {
 
   const visit = (node: Node, depth: number): void => {
     for (const child of node.namedChildren) {
-      if (!child) continue;
-
       result.shape.push(child.type);
-      if (sets.functionNodes.has(child.type)) continue;
+      if (sets.functionNodes.has(child.type)) {
+        continue;
+      }
 
-      if (sets.branchNodes.has(child.type)) result.complexity++;
+      if (sets.branchNodes.has(child.type)) {
+        result.complexity += 1;
+      }
 
       const nextDepth =
-        sets.nestingNodes.has(child.type) && !isChainedElse(child) ? depth + 1 : depth;
+        sets.nestingNodes.has(child.type) && !isChainedElse(child)
+          ? depth + 1
+          : depth;
 
       result.maxDepth = Math.max(result.maxDepth, nextDepth);
       visit(child, nextDepth);

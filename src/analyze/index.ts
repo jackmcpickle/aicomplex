@@ -6,12 +6,12 @@ import { crossFileConnectivity } from "./cross-file-connectivity.js";
 import { deadExports } from "./dead-exports.js";
 import { duplication } from "./duplication.js";
 import { errorMasking } from "./error-masking.js";
+import type { Finding } from "./findings.js";
 import { functionComplexity } from "./function-complexity.js";
 import { godFiles } from "./god-files.js";
 import { importCycles } from "./import-cycles.js";
 import { orphanFiles } from "./orphan-files.js";
 import { symbolCollision } from "./symbol-collision.js";
-import type { Finding } from "./findings.js";
 import type { Analyzer, AnalyzerResult } from "./types.js";
 
 /**
@@ -60,8 +60,10 @@ export function runAnalyzers(index: CodeIndex): AnalyzerResult[] {
     return {
       ...measured,
       analyzer: analyzer.name,
+      findings: [...measured.findings]
+        .toSorted(worstFirst)
+        .slice(0, MAX_FINDINGS),
       pillar: analyzer.pillar,
-      findings: [...measured.findings].sort(worstFirst).slice(0, MAX_FINDINGS),
     };
   });
 }
@@ -74,8 +76,12 @@ export function runAnalyzers(index: CodeIndex): AnalyzerResult[] {
  * analyzer happened to build them, which shuffles as unrelated code moves.
  */
 function worstFirst(a: Finding, b: Finding): number {
-  if (b.weight !== a.weight) return b.weight - a.weight;
-  return (a.file ?? "").localeCompare(b.file ?? "") || (a.line ?? 0) - (b.line ?? 0);
+  if (b.weight !== a.weight) {
+    return b.weight - a.weight;
+  }
+  return (
+    (a.file ?? "").localeCompare(b.file ?? "") || (a.line ?? 0) - (b.line ?? 0)
+  );
 }
 
 export * from "./types.js";

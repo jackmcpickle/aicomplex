@@ -6,7 +6,7 @@ import type { DefinitionKind, SmellKind } from "../parse/language-pack.js";
 /** `path/to/file.ts#name@startIndex` — stable across runs, unique within a scan. */
 export type SymbolId = string;
 
-export type FileNode = {
+export interface FileNode {
   path: string;
   language: Language;
   bytes: number;
@@ -16,9 +16,9 @@ export type FileNode = {
   role: FileRole;
   /** SHA-256 of the contents. Keys the parse cache and the LLM judgement cache. */
   hash: string;
-};
+}
 
-export type SymbolNode = {
+export interface SymbolNode {
   id: SymbolId;
   name: string;
   kind: DefinitionKind;
@@ -29,11 +29,24 @@ export type SymbolNode = {
   endIndex: number;
   /** Visible outside its module: `export` in JS/TS, capitalised in Go, `__all__` or no leading underscore in Python. */
   exported: boolean;
-};
+}
 
-export type ImportKind = "static" | "dynamic" | "require" | "reexport";
+export const IMPORT_KINDS = [
+  "static",
+  "dynamic",
+  "require",
+  "reexport",
+] as const;
 
-export type ImportEdge = {
+export type ImportKind = (typeof IMPORT_KINDS)[number];
+
+const IMPORT_KIND_SET: ReadonlySet<string> = new Set(IMPORT_KINDS);
+
+export function isImportKind(value: string): value is ImportKind {
+  return IMPORT_KIND_SET.has(value);
+}
+
+export interface ImportEdge {
   /** File containing the import statement. */
   from: string;
   /** The specifier exactly as written. */
@@ -44,19 +57,19 @@ export type ImportEdge = {
   names: string[];
   kind: ImportKind;
   line: number;
-};
+}
 
-export type CallEdge = {
+export interface CallEdge {
   from: string;
   /** Symbol containing the call site, when the call sits inside one. */
   fromSymbol: SymbolId | null;
   /** Callee identifier as written. Resolution is name-based, so this may be ambiguous. */
   name: string;
   line: number;
-};
+}
 
 /** One function body, with the measurements every context-cost metric needs. */
-export type FunctionNode = {
+export interface FunctionNode {
   file: string;
   /** Enclosing named symbol, when the function has a name. */
   symbol: SymbolId | null;
@@ -78,17 +91,17 @@ export type FunctionNode = {
   shapeHash: string;
   /** Named AST nodes in the body. Guards against matching trivial bodies. */
   shapeSize: number;
-};
+}
 
-export type Smell = {
+export interface Smell {
   file: string;
   line: number;
   kind: SmellKind;
   /** The offending source, trimmed, for the report. */
   text: string;
-};
+}
 
-export type CodeIndex = {
+export interface CodeIndex {
   root: string;
   files: Map<string, FileNode>;
   symbols: Map<SymbolId, SymbolNode>;
@@ -117,4 +130,4 @@ export type CodeIndex = {
    * "unknown" as "zero".
    */
   coverage: Coverage | null;
-};
+}

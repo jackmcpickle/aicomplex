@@ -1,6 +1,6 @@
-import type { FileNode } from "../index/types.js";
 import type { ScoredIndex } from "../index/scope.js";
-import { type Analyzer } from "./types.js";
+import type { FileNode } from "../index/types.js";
+import type { Analyzer } from "./types.js";
 
 /**
  * How big the file is that a randomly chosen line lives in.
@@ -17,12 +17,11 @@ import { type Analyzer } from "./types.js";
  * codebase, 572 for flask, 722 for vite, 885 for cobra, 1717 for zod.
  */
 export const godFiles: Analyzer = {
+  describe: "Size of the file a randomly chosen line lives in",
   name: "god-files",
   pillar: "context-cost",
-  describe: "Size of the file a randomly chosen line lives in",
-
   run(index: ScoredIndex) {
-    const files = [...index.files.values()].sort((a, b) => a.loc - b.loc);
+    const files = [...index.files.values()].toSorted((a, b) => a.loc - b.loc);
     const totalLoc = files.reduce((sum, file) => sum + file.loc, 0);
 
     return {
@@ -51,14 +50,18 @@ export const godFiles: Analyzer = {
 function lineWeightedPercentile(
   files: readonly FileNode[],
   totalLoc: number,
-  p: number,
+  p: number
 ): number {
-  if (totalLoc === 0) return 0;
+  if (totalLoc === 0) {
+    return 0;
+  }
 
   let seen = 0;
   for (const file of files) {
     seen += file.loc;
-    if (seen >= totalLoc * p) return file.loc;
+    if (seen >= totalLoc * p) {
+      return file.loc;
+    }
   }
   return files.at(-1)?.loc ?? 0;
 }

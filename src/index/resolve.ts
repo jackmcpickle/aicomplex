@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import type { Language } from "../discover/detect.js";
 
 /**
@@ -13,32 +14,52 @@ export function resolveImport(
   fromFile: string,
   specifier: string,
   language: Language,
-  knownFiles: ReadonlySet<string>,
+  knownFiles: ReadonlySet<string>
 ): string | null {
-  if (language === "python") return resolvePython(fromFile, specifier, knownFiles);
-  if (language === "go") return null; // Go imports are module paths, not file paths.
+  if (language === "python") {
+    return resolvePython(fromFile, specifier, knownFiles);
+  }
+  if (language === "go") {
+    return null;
+  } // Go imports are module paths, not file paths.
   return resolveJs(fromFile, specifier, knownFiles);
 }
 
-const JS_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
+const JS_EXTENSIONS = [
+  ".ts",
+  ".tsx",
+  ".mts",
+  ".cts",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+];
 
 function resolveJs(
   fromFile: string,
   specifier: string,
-  knownFiles: ReadonlySet<string>,
+  knownFiles: ReadonlySet<string>
 ): string | null {
-  if (!specifier.startsWith(".")) return null;
+  if (!specifier.startsWith(".")) {
+    return null;
+  }
 
   const base = posixJoin(path.posix.dirname(fromFile), specifier);
 
   // `./foo.js` in ESM TypeScript usually means `./foo.ts` on disk.
-  const withoutExt = base.replace(/\.[cm]?jsx?$/, "");
+  const withoutExt = base.replace(/\.[cm]?jsx?$/u, "");
 
-  for (const candidate of [base, ...JS_EXTENSIONS.flatMap((ext) => [
-    `${withoutExt}${ext}`,
-    `${withoutExt}/index${ext}`,
-  ])]) {
-    if (knownFiles.has(candidate)) return candidate;
+  for (const candidate of [
+    base,
+    ...JS_EXTENSIONS.flatMap((ext) => [
+      `${withoutExt}${ext}`,
+      `${withoutExt}/index${ext}`,
+    ]),
+  ]) {
+    if (knownFiles.has(candidate)) {
+      return candidate;
+    }
   }
 
   return null;
@@ -47,9 +68,9 @@ function resolveJs(
 function resolvePython(
   fromFile: string,
   specifier: string,
-  knownFiles: ReadonlySet<string>,
+  knownFiles: ReadonlySet<string>
 ): string | null {
-  const leadingDots = /^\.+/.exec(specifier)?.[0].length ?? 0;
+  const leadingDots = /^\.+/u.exec(specifier)?.[0].length ?? 0;
 
   let baseDir: string;
   let moduleParts: string[];
@@ -57,7 +78,9 @@ function resolvePython(
   if (leadingDots > 0) {
     // One dot is the current package; each extra dot climbs one level.
     baseDir = path.posix.dirname(fromFile);
-    for (let i = 1; i < leadingDots; i++) baseDir = path.posix.dirname(baseDir);
+    for (let i = 1; i < leadingDots; i += 1) {
+      baseDir = path.posix.dirname(baseDir);
+    }
     moduleParts = specifier.slice(leadingDots).split(".").filter(Boolean);
   } else {
     baseDir = "";
@@ -75,7 +98,9 @@ function resolvePython(
   for (const root of roots) {
     const stem = posixJoin(root, module);
     for (const candidate of [`${stem}.py`, `${stem}/__init__.py`]) {
-      if (knownFiles.has(candidate)) return candidate;
+      if (knownFiles.has(candidate)) {
+        return candidate;
+      }
     }
   }
 

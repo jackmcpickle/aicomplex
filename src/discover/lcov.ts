@@ -21,13 +21,16 @@ export const DEFAULT_LCOV_PATH = "coverage/lcov.info";
  * Returns null when there is no readable lcov file. That is a normal state,
  * not an error: aicc is usually pointed at a checkout nobody has run tests in.
  */
-export async function readLcov(root: string, lcovPath: string): Promise<Coverage | null> {
+export async function readLcov(
+  root: string,
+  lcovPath: string
+): Promise<Coverage | null> {
   const absRoot = path.resolve(root);
   const absLcov = path.resolve(absRoot, lcovPath);
 
   let contents: string;
   try {
-    contents = await readFile(absLcov, "utf8");
+    contents = await readFile(absLcov, "utf-8");
   } catch {
     return null;
   }
@@ -50,12 +53,16 @@ export async function readLcov(root: string, lcovPath: string): Promise<Coverage
       continue;
     }
 
-    if (!current || !line.startsWith("DA:")) continue;
+    if (!current || !line.startsWith("DA:")) {
+      continue;
+    }
 
     const [lineNo, hits] = line.slice(3).split(",");
     const n = Number(lineNo);
     const h = Number(hits);
-    if (!Number.isFinite(n) || !Number.isFinite(h)) continue;
+    if (!Number.isFinite(n) || !Number.isFinite(h)) {
+      continue;
+    }
 
     // A line can appear more than once across merged reports; keep the best.
     current.set(n, Math.max(current.get(n) ?? 0, h));
@@ -76,7 +83,10 @@ export async function readLcov(root: string, lcovPath: string): Promise<Coverage
 function toScanPath(absRoot: string, absLcov: string, raw: string): string {
   const candidates = path.isAbsolute(raw)
     ? [raw]
-    : [path.resolve(path.dirname(path.dirname(absLcov)), raw), path.resolve(absRoot, raw)];
+    : [
+        path.resolve(path.dirname(path.dirname(absLcov)), raw),
+        path.resolve(absRoot, raw),
+      ];
 
   for (const candidate of candidates) {
     const relative = path.relative(absRoot, candidate);
@@ -99,17 +109,23 @@ function toScanPath(absRoot: string, absLcov: string, raw: string): string {
 export function coverageOfSpan(
   hits: LineHits | undefined,
   startLine: number,
-  endLine: number,
+  endLine: number
 ): number | null {
-  if (!hits) return null;
+  if (!hits) {
+    return null;
+  }
 
   let instrumented = 0;
   let covered = 0;
 
   for (const [line, count] of hits) {
-    if (line < startLine || line > endLine) continue;
-    instrumented++;
-    if (count > 0) covered++;
+    if (line < startLine || line > endLine) {
+      continue;
+    }
+    instrumented += 1;
+    if (count > 0) {
+      covered += 1;
+    }
   }
 
   return instrumented === 0 ? null : (covered / instrumented) * 100;

@@ -2,8 +2,6 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    include: ["test/**/*.test.ts"],
-    environment: "node",
     coverage: {
       provider: "v8",
       // lcov is what `aicc` reads for the crap metric; text keeps the summary
@@ -11,5 +9,7 @@ export default defineConfig({
       reporter: ["text-summary", "lcov"],
       include: ["src/**/*.ts"],
     },
+    environment: "node",
+    include: ["test/**/*.test.ts"],
   },
 });

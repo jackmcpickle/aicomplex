@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+
 import { detectLanguage } from "../../src/discover/detect.js";
 
-describe("detectLanguage", () => {
+describe(detectLanguage, () => {
   it.each([
     ["src/index.ts", "typescript"],
     ["src/App.tsx", "tsx"],
@@ -19,6 +20,6 @@ describe("detectLanguage", () => {
     "returns null for %s",
     (filePath) => {
       expect(detectLanguage(filePath)).toBeNull();
-    },
+    }
   );
 });

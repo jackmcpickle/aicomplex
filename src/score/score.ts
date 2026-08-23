@@ -4,7 +4,7 @@ import { scoredFiles } from "../index/scope.js";
 import type { CodeIndex } from "../index/types.js";
 import { ANCHORS, PILLAR_WEIGHTS } from "./anchors.js";
 
-export type MetricScore = {
+export interface MetricScore {
   analyzer: string;
   pillar: Pillar;
   /** The analyzer's own number, in its own unit. */
@@ -23,15 +23,15 @@ export type MetricScore = {
    * reasoned, not corpus-derived.
    */
   why: string;
-};
+}
 
-export type PillarScore = {
+export interface PillarScore {
   pillar: Pillar;
   score: number;
   metrics: MetricScore[];
-};
+}
 
-export type SlopScore = {
+export interface SlopScore {
   /** 0–100, higher is worse. */
   score: number;
   grade: "A" | "B" | "C" | "D" | "F";
@@ -39,16 +39,16 @@ export type SlopScore = {
   base: number;
   size: SizeContext;
   pillars: PillarScore[];
-};
+}
 
-export type SizeContext = {
+export interface SizeContext {
   loc: number;
   files: number;
   /** 0 at 1k lines, 1 at 1M lines. Drives both size adjustments. */
   factor: number;
   /** How much the size adjustment moved the score, in points. */
   adjustment: number;
-};
+}
 
 /**
  * Maps a raw metric value onto 0–100.
@@ -59,10 +59,14 @@ export type SizeContext = {
  */
 export function severityOf(analyzer: string, raw: number): number | null {
   const anchor = ANCHORS[analyzer];
-  if (!anchor) return null;
+  if (!anchor) {
+    return null;
+  }
 
   const { good, bad } = anchor;
-  if (bad === good) return raw > good ? 100 : 0;
+  if (bad === good) {
+    return raw > good ? 100 : 0;
+  }
 
   return clamp(((raw - good) / (bad - good)) * 100);
 }
@@ -80,20 +84,25 @@ export function severityOf(analyzer: string, raw: number): number | null {
  * measurable defects is still harder to work in than a two-thousand-line one,
  * so a floor is added that depends only on size.
  */
-export function scoreIndex(index: CodeIndex, results: AnalyzerResult[]): SlopScore {
+export function scoreIndex(
+  index: CodeIndex,
+  results: AnalyzerResult[]
+): SlopScore {
   const metrics: MetricScore[] = [];
 
   for (const result of results) {
     const anchor = ANCHORS[result.analyzer];
     const severity = severityOf(result.analyzer, result.metric);
-    if (severity === null || !anchor) continue;
+    if (severity === null || !anchor) {
+      continue;
+    }
     metrics.push({
       analyzer: result.analyzer,
+      bad: anchor.bad,
+      good: anchor.good,
       pillar: result.pillar,
       raw: result.metric,
       severity,
-      good: anchor.good,
-      bad: anchor.bad,
       why: anchor.rationale,
     });
   }
@@ -101,25 +110,27 @@ export function scoreIndex(index: CodeIndex, results: AnalyzerResult[]): SlopSco
   const pillars: PillarScore[] = PILLARS.map((pillar) => {
     const forPillar = metrics.filter((metric) => metric.pillar === pillar);
     return {
+      metrics: forPillar,
       pillar,
       score: mean(forPillar.map((metric) => metric.severity)),
-      metrics: forPillar,
     };
   }).filter((entry) => entry.metrics.length > 0);
 
   const base = weightedMean(
-    pillars.map((entry) => [entry.score, PILLAR_WEIGHTS[entry.pillar]] as const),
+    pillars.map((entry) => [entry.score, PILLAR_WEIGHTS[entry.pillar]] as const)
   );
 
   const size = measureSize(index);
-  const score = clamp(base * problemWeight(size.factor) + sizeBurden(size.factor));
+  const score = clamp(
+    base * problemWeight(size.factor) + sizeBurden(size.factor)
+  );
 
   return {
-    score,
-    grade: gradeOf(score),
     base,
-    size: { ...size, adjustment: score - base },
+    grade: gradeOf(score),
     pillars,
+    score,
+    size: { ...size, adjustment: score - base },
   };
 }
 
@@ -129,9 +140,9 @@ function measureSize(index: CodeIndex): Omit<SizeContext, "adjustment"> {
 
   // 1k lines → 0, 1M lines → 1, on a log scale because the difference between
   // 1k and 10k matters as much as between 100k and 1M.
-  const factor = clamp(Math.log10(Math.max(loc, 1) / 1_000) / 3, 0, 1);
+  const factor = clamp(Math.log10(Math.max(loc, 1) / 1000) / 3, 0, 1);
 
-  return { loc, files: files.length, factor };
+  return { factor, files: files.length, loc };
 }
 
 /** Problems count for 0.85x in a tiny codebase and 1.15x in a huge one. */
@@ -145,21 +156,36 @@ function sizeBurden(factor: number): number {
 }
 
 function gradeOf(score: number): SlopScore["grade"] {
-  if (score < 15) return "A";
-  if (score < 30) return "B";
-  if (score < 50) return "C";
-  if (score < 70) return "D";
+  if (score < 15) {
+    return "A";
+  }
+  if (score < 30) {
+    return "B";
+  }
+  if (score < 50) {
+    return "C";
+  }
+  if (score < 70) {
+    return "D";
+  }
   return "F";
 }
 
 function mean(values: number[]): number {
-  return values.length === 0 ? 0 : values.reduce((sum, v) => sum + v, 0) / values.length;
+  return values.length === 0
+    ? 0
+    : values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
 function weightedMean(pairs: readonly (readonly [number, number])[]): number {
   const totalWeight = pairs.reduce((sum, [, weight]) => sum + weight, 0);
-  if (totalWeight === 0) return 0;
-  return pairs.reduce((sum, [value, weight]) => sum + value * weight, 0) / totalWeight;
+  if (totalWeight === 0) {
+    return 0;
+  }
+  return (
+    pairs.reduce((sum, [value, weight]) => sum + value * weight, 0) /
+    totalWeight
+  );
 }
 
 function clamp(value: number, low = 0, high = 100): number {

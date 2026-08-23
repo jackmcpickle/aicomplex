@@ -1,7 +1,9 @@
 import type { Node, QueryMatch, Tree } from "web-tree-sitter";
+
 import type { DiscoveredFile } from "../../discover/walk.js";
 import type { CompiledLanguage } from "../../parse/parser.js";
 import { resolveImport } from "../resolve.js";
+import { isImportKind } from "../types.js";
 import type { ImportEdge, ImportKind } from "../types.js";
 import { spanKey, splitCaptureName, stripQuotes } from "./shared.js";
 
@@ -9,7 +11,7 @@ export function collectImports(
   compiled: CompiledLanguage,
   tree: Tree,
   file: DiscoveredFile,
-  knownFiles: ReadonlySet<string>,
+  knownFiles: ReadonlySet<string>
 ): ImportEdge[] {
   const matches = compiled.queries.imports.matches(tree.rootNode);
   const edges = new Map<string, ImportEdge>();
@@ -17,28 +19,45 @@ export function collectImports(
 
   for (const match of matches) {
     const parsed = readImport(match);
-    if (!parsed) continue;
+    if (!parsed) {
+      continue;
+    }
 
     const key = spanKey(parsed.statement);
-    if (edges.has(key)) continue;
+    if (edges.has(key)) {
+      continue;
+    }
 
     edges.set(key, {
       from: file.path,
-      source: parsed.source,
-      resolved: resolveImport(file.path, parsed.source, file.language, knownFiles),
-      names: [],
       kind: parsed.kind,
       line: parsed.statement.startPosition.row + 1,
+      names: [],
+      resolved: resolveImport(
+        file.path,
+        parsed.source,
+        file.language,
+        knownFiles
+      ),
+      source: parsed.source,
     });
-    spans.push({ key, start: parsed.statement.startIndex, end: parsed.statement.endIndex });
+    spans.push({
+      end: parsed.statement.endIndex,
+      key,
+      start: parsed.statement.startIndex,
+    });
   }
 
   attachBindings(matches, edges, spans);
 
-  return [...edges.values()].sort((a, b) => a.line - b.line);
+  return [...edges.values()].toSorted((a, b) => a.line - b.line);
 }
 
-type ParsedImport = { statement: Node; source: string; kind: ImportKind };
+interface ParsedImport {
+  statement: Node;
+  source: string;
+  kind: ImportKind;
+}
 
 /**
  * Reads one import match.
@@ -54,34 +73,49 @@ function readImport(match: QueryMatch): ParsedImport | null {
 
   for (const capture of match.captures) {
     const [prefix, suffix] = splitCaptureName(capture.name);
-    if (prefix !== "import" || !suffix) continue;
+    if (prefix !== "import" || suffix === undefined) {
+      continue;
+    }
 
-    if (suffix === "source") sourceNode = capture.node;
-    else if (suffix !== "name") {
+    if (suffix === "source") {
+      sourceNode = capture.node;
+    } else if (suffix !== "name" && isImportKind(suffix)) {
       statement = capture.node;
-      kind = suffix as ImportKind;
+      kind = suffix;
     }
   }
 
-  if (!sourceNode) return null;
-  return { statement: statement ?? sourceNode, source: stripQuotes(sourceNode.text), kind };
+  if (!sourceNode) {
+    return null;
+  }
+  return {
+    kind,
+    source: stripQuotes(sourceNode.text),
+    statement: statement ?? sourceNode,
+  };
 }
 
 /** Attaches each imported binding to the import statement enclosing it. */
 function attachBindings(
   matches: QueryMatch[],
   edges: Map<string, ImportEdge>,
-  spans: { key: string; start: number; end: number }[],
+  spans: { key: string; start: number; end: number }[]
 ): void {
   for (const match of matches) {
     for (const capture of match.captures) {
-      if (capture.name !== "import.name") continue;
+      if (capture.name !== "import.name") {
+        continue;
+      }
 
       const owner = spans.find(
-        (span) => capture.node.startIndex >= span.start && capture.node.endIndex <= span.end,
+        (span) =>
+          capture.node.startIndex >= span.start &&
+          capture.node.endIndex <= span.end
       );
       const edge = owner ? edges.get(owner.key) : undefined;
-      if (edge && !edge.names.includes(capture.node.text)) edge.names.push(capture.node.text);
+      if (edge && !edge.names.includes(capture.node.text)) {
+        edge.names.push(capture.node.text);
+      }
     }
   }
 }

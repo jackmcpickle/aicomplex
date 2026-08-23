@@ -19,7 +19,7 @@ export type Pillar = (typeof PILLARS)[number];
  * implementation ended with `analyzer: godFiles.name, pillar: godFiles.pillar`.
  * `runAnalyzers` stamps them on.
  */
-export type Measurement = {
+export interface Measurement {
   /**
    * The analyzer's headline number, always normalised so higher means worse
    * and the value is comparable across repos of different sizes.
@@ -32,7 +32,7 @@ export type Measurement = {
    * worst `MAX_FINDINGS`, so no analyzer has to remember to.
    */
   findings: Finding[];
-};
+}
 
 export type AnalyzerResult = Measurement & {
   analyzer: string;
@@ -50,13 +50,13 @@ export type AnalyzerResult = Measurement & {
  * see a benchmark, example, script, doc or test file at all. That used to be a
  * rule each analyzer had to remember to apply to everything it touched.
  */
-export type Analyzer = {
+export interface Analyzer {
   name: string;
   pillar: Pillar;
   /** Shown in the report to explain what the number means. */
   describe: string;
-  run(index: ScoredIndex): Measurement;
-};
+  run: (index: ScoredIndex) => Measurement;
+}
 
 /** Convenience for analyzers that need a size-relative percentage. */
 export function percent(part: number, whole: number): number {

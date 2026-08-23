@@ -1,37 +1,36 @@
 {
   "name": "aicc",
   "version": "0.0.1",
-  "description": "AI Code Complexity \u2014 measure how much slop a codebase is carrying, from the point of view of an AI agent working in it.",
-  "type": "module",
+  "description": "AI Code Complexity — measure how much slop a codebase is carrying, from the point of view of an AI agent working in it.",
+  "keywords": [
+    "agents",
+    "ai-slop",
+    "code-quality",
+    "complexity",
+    "static-analysis",
+    "tree-sitter"
+  ],
+  "license": "MIT",
   "bin": {
     "aicc": "./dist/cli.js"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "files": [
     "dist",
     "grammars"
   ],
-  "engines": {
-    "node": ">=20"
-  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "check": "ultracite check --type-aware",
+    "fix": "ultracite fix --type-aware"
   },
-  "keywords": [
-    "code-quality",
-    "ai-slop",
-    "complexity",
-    "static-analysis",
-    "tree-sitter",
-    "agents"
-  ],
-  "license": "MIT",
   "dependencies": {
     "commander": "^14.0.1",
     "ignore": "^7.0.5",
@@ -45,8 +44,16 @@
   "devDependencies": {
     "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^3.2.7",
+    "eslint-plugin-crap": "^0.1.3",
+    "oxfmt": "^0.64.0",
+    "oxlint": "^1.79.0",
+    "oxlint-tsgolint": "^7.0.2001",
     "tsx": "^4.20.7",
     "typescript": "^5.9.3",
+    "ultracite": "7.10.6",
     "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

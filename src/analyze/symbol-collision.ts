@@ -1,6 +1,7 @@
 import type { ScoredIndex } from "../index/scope.js";
 import type { Finding } from "./findings.js";
-import { percent, type Analyzer } from "./types.js";
+import { percent } from "./types.js";
+import type { Analyzer } from "./types.js";
 
 /**
  * How often a symbol name points at more than one definition.
@@ -21,10 +22,9 @@ import { percent, type Analyzer } from "./types.js";
  * analyzer interface.
  */
 export const symbolCollision: Analyzer = {
+  describe: "Share of definitions whose name does not uniquely identify them",
   name: "symbol-collision",
   pillar: "findability",
-  describe: "Share of definitions whose name does not uniquely identify them",
-
   run(index: ScoredIndex) {
     const buckets = new Map<string, string[]>();
 
@@ -35,22 +35,46 @@ export const symbolCollision: Analyzer = {
 
     for (const [name, ids] of index.symbolsByName) {
       const fromSource = ids.filter(counts);
-      if (fromSource.length > 1) buckets.set(name, fromSource);
+      if (fromSource.length > 1) {
+        buckets.set(name, fromSource);
+      }
     }
 
     const sourceSymbols = [...index.symbols.keys()].filter(counts).length;
 
-    const ambiguous = [...buckets.values()].reduce((sum, ids) => sum + ids.length, 0);
+    const ambiguous = [...buckets.values()].reduce(
+      (sum, ids) => sum + ids.length,
+      0
+    );
 
-    const findings: Finding[] = [...buckets.entries()].map(([name, ids]) => ({
-      kind: "ambiguous-name",
-      name,
-      definitions: ids.length,
-      files: new Set(ids.map((id) => index.symbols.get(id)!.file)).size,
-      symbol: name,
-      file: index.symbols.get(ids[0]!)!.file,
-      weight: ids.length,
-    }));
+    const findings: Finding[] = [...buckets.entries()].flatMap(
+      ([name, ids]) => {
+        const files = new Set<string>();
+        let file: string | undefined;
+        for (const id of ids) {
+          const symbol = index.symbols.get(id);
+          if (symbol === undefined) {
+            continue;
+          }
+          files.add(symbol.file);
+          file ??= symbol.file;
+        }
+        if (file === undefined) {
+          return [];
+        }
+        return [
+          {
+            kind: "ambiguous-name",
+            name,
+            definitions: ids.length,
+            files: files.size,
+            symbol: name,
+            file,
+            weight: ids.length,
+          },
+        ];
+      }
+    );
 
     return {
       metric: percent(ambiguous, sourceSymbols),

@@ -8,15 +8,17 @@ import path from "node:path";
  */
 export async function makeTmpRepo(
   files: Record<string, string>,
-  onCleanup: (fn: () => Promise<void>) => void,
+  onCleanup: (fn: () => Promise<void>) => void
 ): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), "aicc-test-"));
-  onCleanup(() => rm(root, { recursive: true, force: true }));
+  onCleanup(async () => {
+    await rm(root, { force: true, recursive: true });
+  });
 
   for (const [relative, contents] of Object.entries(files)) {
     const absPath = path.join(root, relative);
     await mkdir(path.dirname(absPath), { recursive: true });
-    await writeFile(absPath, contents, "utf8");
+    await writeFile(absPath, contents, "utf-8");
   }
 
   return root;

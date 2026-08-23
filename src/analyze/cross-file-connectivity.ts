@@ -1,6 +1,7 @@
-import type { SymbolNode } from "../index/types.js";
 import type { ScoredIndex } from "../index/scope.js";
-import { percent, type Analyzer } from "./types.js";
+import type { SymbolNode } from "../index/types.js";
+import { percent } from "./types.js";
+import type { Analyzer } from "./types.js";
 
 /**
  * How much of the codebase's own code actually calls the rest of it.
@@ -16,10 +17,9 @@ import { percent, type Analyzer } from "./types.js";
  * library and builtin calls say nothing about internal cohesion.
  */
 export const crossFileConnectivity: Analyzer = {
+  describe: "Share of internal calls that stay inside their own file",
   name: "cross-file-connectivity",
   pillar: "traceability",
-  describe: "Share of internal calls that stay inside their own file",
-
   run(index: ScoredIndex) {
     const definedIn = definitionSites(index);
 
@@ -31,35 +31,52 @@ export const crossFileConnectivity: Analyzer = {
 
     for (const call of index.calls) {
       const sites = definedIn.get(call.name);
-      if (!sites || sites.size === 0) continue; // Library or builtin.
+      if (sites === undefined || sites.size === 0) {
+        continue;
+      }
 
-      internal++;
-      if (!sites.has(call.from)) continue;
+      internal += 1;
+      if (!sites.has(call.from)) {
+        continue;
+      }
 
-      sameFile++;
+      sameFile += 1;
 
       // A file calling its own private helper is good design, not slop. What
       // matters is calling a local helper whose name is *also* defined
       // elsewhere — that is the shape of a re-implemented shared utility.
       if (sites.size > 1) {
         const bucket = reimplemented.get(call.from);
-        if (bucket) bucket.add(call.name);
-        else reimplemented.set(call.from, new Set([call.name]));
+        if (bucket) {
+          bucket.add(call.name);
+        } else {
+          reimplemented.set(call.from, new Set([call.name]));
+        }
       }
     }
 
     return {
       metric: percent(sameFile, internal),
       unit: "% of internal calls that never leave their file",
-      findings: [...reimplemented].map(([file, names]) => {
-        const sorted = [...names].sort();
-        return {
-          kind: "reimplemented" as const,
-          file,
-          names: sorted,
-          alsoDefinedIn: definedIn.get(sorted[0]!)!.size - 1,
-          weight: sorted.length,
-        };
+      findings: [...reimplemented].flatMap(([file, names]) => {
+        const sorted = [...names].toSorted();
+        const [first] = sorted;
+        if (first === undefined) {
+          return [];
+        }
+        const sites = definedIn.get(first);
+        if (sites === undefined) {
+          return [];
+        }
+        return [
+          {
+            kind: "reimplemented" as const,
+            file,
+            names: sorted,
+            alsoDefinedIn: sites.size - 1,
+            weight: sorted.length,
+          },
+        ];
       }),
     };
   },
@@ -70,15 +87,24 @@ function definitionSites(index: ScoredIndex): Map<string, Set<string>> {
   const sites = new Map<string, Set<string>>();
 
   for (const symbol of index.symbols.values()) {
-    if (!isCallable(symbol)) continue;
+    if (!isCallable(symbol)) {
+      continue;
+    }
     const bucket = sites.get(symbol.name);
-    if (bucket) bucket.add(symbol.file);
-    else sites.set(symbol.name, new Set([symbol.file]));
+    if (bucket) {
+      bucket.add(symbol.file);
+    } else {
+      sites.set(symbol.name, new Set([symbol.file]));
+    }
   }
 
   return sites;
 }
 
 function isCallable(symbol: SymbolNode): boolean {
-  return symbol.kind === "function" || symbol.kind === "method" || symbol.kind === "class";
+  return (
+    symbol.kind === "function" ||
+    symbol.kind === "method" ||
+    symbol.kind === "class"
+  );
 }

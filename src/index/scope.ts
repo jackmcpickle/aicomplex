@@ -1,7 +1,7 @@
 import { SCORED_ROLES } from "../discover/role.js";
 import type { CodeIndex, FileNode } from "./types.js";
 
-declare const scopedBrand: unique symbol;
+const scopedBrand: unique symbol = Symbol("ScoredIndex");
 
 /**
  * A `CodeIndex` narrowed to the files that count toward the score.
@@ -37,7 +37,9 @@ const cache = new WeakMap<CodeIndex, ScoredIndex>();
 
 export function scopeIndex(index: CodeIndex): ScoredIndex {
   const existing = cache.get(index);
-  if (existing) return existing;
+  if (existing) {
+    return existing;
+  }
 
   const scoped = narrow(index);
   cache.set(index, scoped);
@@ -46,22 +48,29 @@ export function scopeIndex(index: CodeIndex): ScoredIndex {
 
 function narrow(index: CodeIndex): ScoredIndex {
   const files = new Map(
-    [...index.files].filter(([, file]) => SCORED_ROLES.has(file.role)),
+    [...index.files].filter(([, file]) => SCORED_ROLES.has(file.role))
   );
   const keeps = (path: string) => files.has(path);
 
-  const symbols = new Map([...index.symbols].filter(([, symbol]) => keeps(symbol.file)));
+  const symbols = new Map(
+    [...index.symbols].filter(([, symbol]) => keeps(symbol.file))
+  );
 
   const symbolsByName = new Map<string, string[]>();
   for (const symbol of symbols.values()) {
     const bucket = symbolsByName.get(symbol.name);
-    if (bucket) bucket.push(symbol.id);
-    else symbolsByName.set(symbol.name, [symbol.id]);
+    if (bucket) {
+      bucket.push(symbol.id);
+    } else {
+      symbolsByName.set(symbol.name, [symbol.id]);
+    }
   }
 
   const identifierCounts = new Map<string, number>();
   for (const [path, counts] of index.identifierCounts) {
-    if (!keeps(path)) continue;
+    if (!keeps(path)) {
+      continue;
+    }
     for (const [name, count] of counts) {
       identifierCounts.set(name, (identifierCounts.get(name) ?? 0) + count);
     }
@@ -75,7 +84,8 @@ function narrow(index: CodeIndex): ScoredIndex {
     identifierCounts,
     // An import or call is evidence only when both ends are shipped source.
     imports: index.imports.filter(
-      (edge) => keeps(edge.from) && (edge.resolved === null || keeps(edge.resolved)),
+      (edge) =>
+        keeps(edge.from) && (edge.resolved === null || keeps(edge.resolved))
     ),
     calls: index.calls.filter((call) => keeps(call.from)),
     functions: index.functions.filter((fn) => keeps(fn.file)),
@@ -84,7 +94,8 @@ function narrow(index: CodeIndex): ScoredIndex {
       index.coverage === null
         ? null
         : new Map([...index.coverage].filter(([path]) => keeps(path))),
-  } as ScoredIndex;
+    [scopedBrand]: true,
+  };
 }
 
 /** Every file that counts toward the score. For callers holding a full index. */

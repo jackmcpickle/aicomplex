@@ -1,7 +1,8 @@
 import { coverageOfSpan } from "../discover/lcov.js";
 import type { ScoredIndex } from "../index/scope.js";
 import type { Finding } from "./findings.js";
-import { percent, type Analyzer } from "./types.js";
+import { percent } from "./types.js";
+import type { Analyzer } from "./types.js";
 
 /**
  * Change Risk Anti-Patterns — complexity that nothing tests.
@@ -30,10 +31,9 @@ import { percent, type Analyzer } from "./types.js";
  * points. Expect the same function to score somewhat lower here.
  */
 export const crap: Analyzer = {
+  describe: "Complexity weighted by how little of it is covered by tests",
   name: "crap",
   pillar: "change-risk",
-  describe: "Complexity weighted by how little of it is covered by tests",
-
   run(index: ScoredIndex) {
     if (index.coverage === null) {
       return {
@@ -43,12 +43,24 @@ export const crap: Analyzer = {
       };
     }
 
-    const scored: { file: string; line: number; name: string; complexity: number; coverage: number; crap: number }[] =
-      [];
+    const scored: {
+      file: string;
+      line: number;
+      name: string;
+      complexity: number;
+      coverage: number;
+      crap: number;
+    }[] = [];
 
     for (const fn of index.functions) {
-      const coverage = coverageOfSpan(index.coverage.get(fn.file), fn.startLine, fn.endLine);
-      if (coverage === null) continue; // Not instrumented: unknown, not zero.
+      const coverage = coverageOfSpan(
+        index.coverage.get(fn.file),
+        fn.startLine,
+        fn.endLine
+      );
+      if (coverage === null) {
+        continue;
+      }
 
       scored.push({
         file: fn.file,
@@ -70,22 +82,28 @@ export const crap: Analyzer = {
 
     const bands = BANDS.map((threshold) => ({
       threshold,
-      share: percent(scored.filter((entry) => entry.crap > threshold).length, scored.length),
+      share: percent(
+        scored.filter((entry) => entry.crap > threshold).length,
+        scored.length
+      ),
     }));
+
+    const shareAt = (threshold: (typeof BANDS)[number]): number =>
+      bands.find((band) => band.threshold === threshold)?.share ?? 0;
 
     const findings: Finding[] = [
       {
         kind: "crap-bands",
         functions: scored.length,
-        over5: bands[0]!.share,
-        over15: bands[1]!.share,
-        over30: bands[2]!.share,
+        over5: shareAt(5),
+        over15: shareAt(15),
+        over30: shareAt(30),
         // Ranks above every individual function, so the summary leads. Finite
         // because Infinity serialises to null in JSON.
         weight: Number.MAX_SAFE_INTEGER,
       },
       ...scored
-        .filter((entry) => entry.crap > BANDS[0]!)
+        .filter((entry) => entry.crap > BANDS[0])
         .map((entry) => ({
           kind: "crap-function" as const,
           file: entry.file,

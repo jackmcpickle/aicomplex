@@ -1,15 +1,23 @@
 import type { Node } from "web-tree-sitter";
+
 import type { SymbolNode } from "../types.js";
 
 /** Pre-order walk. Returning false from `visit` prunes that subtree. */
 export function walkTree(root: Node, visit: (node: Node) => boolean): void {
   const stack: Node[] = [root];
   while (stack.length > 0) {
-    const node = stack.pop()!;
-    if (node !== root && !visit(node)) continue;
-    for (let i = node.namedChildCount - 1; i >= 0; i--) {
+    const node = stack.pop();
+    if (node === undefined) {
+      continue;
+    }
+    if (node !== root && !visit(node)) {
+      continue;
+    }
+    for (let i = node.namedChildCount - 1; i >= 0; i -= 1) {
       const child = node.namedChild(i);
-      if (child) stack.push(child);
+      if (child !== null) {
+        stack.push(child);
+      }
     }
   }
 }
@@ -17,11 +25,13 @@ export function walkTree(root: Node, visit: (node: Node) => boolean): void {
 /** Splits `definition.function` into `["definition", "function"]`. */
 export function splitCaptureName(name: string): [string, string | undefined] {
   const dot = name.indexOf(".");
-  return dot === -1 ? [name, undefined] : [name.slice(0, dot), name.slice(dot + 1)];
+  return dot === -1
+    ? [name, undefined]
+    : [name.slice(0, dot), name.slice(dot + 1)];
 }
 
 export function stripQuotes(text: string): string {
-  return text.replace(/^["'`]|["'`]$/g, "");
+  return text.replaceAll(/^["'`]|["'`]$/gu, "");
 }
 
 /** Identifies a node by its source span, for deduplicating query matches. */
@@ -37,13 +47,20 @@ export function spanKey(node: Node): string {
  */
 export function enclosingSymbol(
   symbols: readonly SymbolNode[],
-  offset: number,
+  offset: number
 ): SymbolNode | undefined {
   let best: SymbolNode | undefined;
   for (const symbol of symbols) {
-    if (symbol.startIndex > offset) break;
-    if (offset >= symbol.endIndex) continue;
-    if (!best || symbol.endIndex - symbol.startIndex < best.endIndex - best.startIndex) {
+    if (symbol.startIndex > offset) {
+      break;
+    }
+    if (offset >= symbol.endIndex) {
+      continue;
+    }
+    if (
+      !best ||
+      symbol.endIndex - symbol.startIndex < best.endIndex - best.startIndex
+    ) {
       best = symbol;
     }
   }

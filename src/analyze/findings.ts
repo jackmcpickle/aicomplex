@@ -13,7 +13,7 @@ import type { DefinitionKind, SmellKind } from "../parse/language-pack.js";
  */
 
 /** Fields every finding carries, whatever its kind. */
-type Located = {
+interface Located {
   file?: string;
   line?: number;
   symbol?: string;
@@ -22,22 +22,43 @@ type Located = {
    * cap them; the score comes from the metric, never from summing findings.
    */
   weight: number;
-};
+}
 
 export type Finding = Located &
   (
-    | { kind: "ambiguous-name"; name: string; definitions: number; files: number }
+    | {
+        kind: "ambiguous-name";
+        name: string;
+        definitions: number;
+        files: number;
+      }
     | { kind: "orphan"; loc: number }
     | { kind: "barrel"; uses: number; chain: number }
     | { kind: "cycle"; members: string[] }
     | { kind: "reimplemented"; names: string[]; alsoDefinedIn: number }
     | { kind: "large-file"; loc: number; bytes: number }
-    | { kind: "hard-function"; complexity: number; maxDepth: number; lines: number }
-    | { kind: "duplicate-body"; copies: number; lines: number; files: number; names: string[] }
+    | {
+        kind: "hard-function";
+        complexity: number;
+        maxDepth: number;
+        lines: number;
+      }
+    | {
+        kind: "duplicate-body";
+        copies: number;
+        lines: number;
+        files: number;
+        names: string[];
+      }
     | { kind: "masked-errors"; smell: SmellKind; count: number }
     | { kind: "worst-masking-file"; count: number }
     | { kind: "dead-export"; definition: DefinitionKind }
-    | { kind: "crap-function"; crap: number; complexity: number; coverage: number }
+    | {
+        kind: "crap-function";
+        crap: number;
+        complexity: number;
+        coverage: number;
+      }
     | {
         kind: "crap-bands";
         functions: number;

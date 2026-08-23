@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+
 import { runAnalyzers } from "./analyze/index.js";
 import { DEFAULT_LCOV_PATH, readLcov } from "./discover/lcov.js";
 import { walk } from "./discover/walk.js";
@@ -13,7 +14,7 @@ const program = new Command();
 program
   .name("aicc")
   .description(
-    "AI Code Complexity — measure how much slop a codebase is carrying, from an AI agent's point of view.",
+    "AI Code Complexity — measure how much slop a codebase is carrying, from an AI agent's point of view."
   )
   .version("0.0.1");
 
@@ -22,10 +23,19 @@ program
   .description("Scan a codebase and report its agent-navigability metrics")
   .argument("[path]", "path to scan", ".")
   .option("--json", "emit machine-readable JSON")
-  .option("--detail <n>", "findings to show per metric", (value) => Number.parseInt(value, 10), 3)
+  .option(
+    "--detail <n>",
+    "findings to show per metric",
+    (value) => Math.trunc(Number(value)),
+    3
+  )
   .option("--exclude <glob...>", "additional glob patterns to exclude")
   .option("--why", "explain the threshold behind each metric")
-  .option("--lcov <path>", "lcov report to read coverage from", DEFAULT_LCOV_PATH)
+  .option(
+    "--lcov <path>",
+    "lcov report to read coverage from",
+    DEFAULT_LCOV_PATH
+  )
   .action(
     async (
       target: string,
@@ -35,30 +45,31 @@ program
         exclude?: string[];
         why?: boolean;
         lcov: string;
-      },
+      }
     ) => {
-      const files = await walk(target, options.exclude ? { exclude: options.exclude } : {});
+      const files = await walk(
+        target,
+        options.exclude ? { exclude: options.exclude } : {}
+      );
       const coverage = await readLcov(target, options.lcov);
       const index = await buildIndex(target, files, coverage);
       const results = runAnalyzers(index);
       const score = scoreIndex(index, results);
 
-      if (options.json) {
+      if (options.json === true) {
         console.log(
           JSON.stringify(
             {
-              root: index.root,
-              slopScore: score.score,
-              grade: score.grade,
               base: score.base,
-              size: score.size,
-              pillars: score.pillars,
-              files: index.files.size,
-              symbols: index.symbols.size,
-              imports: index.imports.length,
               calls: index.calls.length,
+              coverage:
+                coverage === null
+                  ? null
+                  : { files: coverage.size, lcov: options.lcov },
               failures: index.failures,
-              coverage: coverage === null ? null : { files: coverage.size, lcov: options.lcov },
+              files: index.files.size,
+              grade: score.grade,
+              imports: index.imports.length,
               metrics: results.map((result) => ({
                 ...result,
                 // Findings cross the seam as data; the sentence is derived
@@ -69,16 +80,26 @@ program
                   message: renderFinding(finding),
                 })),
               })),
+              pillars: score.pillars,
+              root: index.root,
+              size: score.size,
+              slopScore: score.score,
+              symbols: index.symbols.size,
             },
             null,
-            2,
-          ),
+            2
+          )
         );
         return;
       }
 
-      process.stdout.write(renderTerminalReport(index, results, score, { detail: options.detail, why: options.why === true }));
-    },
+      process.stdout.write(
+        renderTerminalReport(index, results, score, {
+          detail: options.detail,
+          why: options.why === true,
+        })
+      );
+    }
   );
 
 await program.parseAsync();

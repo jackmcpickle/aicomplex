@@ -1,9 +1,10 @@
 import { describe, expect, it, onTestFinished } from "vitest";
+
 import { crap, crapScore } from "../../src/analyze/crap.js";
 import { scopeIndex } from "../../src/index/scope.js";
 import { indexFixture } from "../helpers/index-fixture.js";
 
-describe("crapScore", () => {
+describe(crapScore, () => {
   it("is just complexity when everything is covered", () => {
     expect(crapScore(11, 100)).toBe(11);
     expect(crapScore(1, 100)).toBe(1);
@@ -55,38 +56,49 @@ describe("crap analyzer", () => {
     const result = crap.run(scopeIndex(index));
 
     expect(result.metric).toBe(0);
-    expect(result.findings).toEqual([{ kind: "coverage-missing", weight: 1 }]);
+    expect(result.findings).toStrictEqual([
+      { kind: "coverage-missing", weight: 1 },
+    ]);
     expect(result.unit).toContain("no lcov");
   });
 
   it("scores a branchy uncovered function badly", async () => {
     const index = await indexFixture(
       {
-        "src/a.ts": BRANCHY,
         "coverage/lcov.info": lcov("src/a.ts", [], [2, 3, 4, 5, 6, 7]),
+        "src/a.ts": BRANCHY,
       },
-      onTestFinished,
+      onTestFinished
     );
 
     const result = crap.run(scopeIndex(index));
-    const worst = result.findings.find((finding) => finding.kind === "crap-function");
+    const worst = result.findings.find(
+      (finding) => finding.kind === "crap-function"
+    );
 
+    expect(worst?.kind).toBe("crap-function");
     expect(worst?.coverage).toBe(0);
-    expect(worst?.crap).toBe(crapScore(worst!.complexity, 0));
+    expect(worst?.kind === "crap-function" ? worst.crap : Number.NaN).toBe(
+      worst?.kind === "crap-function"
+        ? crapScore(worst.complexity, 0)
+        : Number.NaN
+    );
     expect(result.metric).toBe(100); // Over all three bands.
   });
 
   it("scores the same function well once it is covered", async () => {
     const index = await indexFixture(
       {
-        "src/a.ts": BRANCHY,
         "coverage/lcov.info": lcov("src/a.ts", [2, 3, 4, 5, 6, 7], []),
+        "src/a.ts": BRANCHY,
       },
-      onTestFinished,
+      onTestFinished
     );
 
     const result = crap.run(scopeIndex(index));
-    const bands = result.findings.find((finding) => finding.kind === "crap-bands");
+    const bands = result.findings.find(
+      (finding) => finding.kind === "crap-bands"
+    );
 
     expect(bands?.over30).toBe(0);
     expect(bands?.over15).toBe(0);
@@ -98,32 +110,44 @@ describe("crap analyzer", () => {
       {
         // One branchy uncovered function, three trivial covered ones.
         "src/a.ts": BRANCHY,
-        "src/b.ts": "export const one = () => 1;\nexport const two = () => 2;\nexport const three = () => 3;\n",
+        "src/b.ts":
+          "export const one = () => 1;\nexport const two = () => 2;\nexport const three = () => 3;\n",
         "coverage/lcov.info":
-          lcov("src/a.ts", [], [2, 3, 4, 5, 6, 7]) + lcov("src/b.ts", [1, 2, 3], []),
+          lcov("src/a.ts", [], [2, 3, 4, 5, 6, 7]) +
+          lcov("src/b.ts", [1, 2, 3], []),
       },
-      onTestFinished,
+      onTestFinished
     );
 
     const result = crap.run(scopeIndex(index));
-    const bands = result.findings.find((finding) => finding.kind === "crap-bands")!;
+    const bands = result.findings.find(
+      (finding) => finding.kind === "crap-bands"
+    );
 
-    expect(bands.functions).toBe(4);
-    expect(bands.over5).toBe(25); // Only the branchy one.
-    expect(result.metric).toBeCloseTo((bands.over5 + bands.over15 + bands.over30) / 3, 6);
+    expect(bands?.kind).toBe("crap-bands");
+    expect(bands && "functions" in bands ? bands.functions : 0).toBe(4);
+    expect(bands && "over5" in bands ? bands.over5 : 0).toBe(25); // Only the branchy one.
+    expect(result.metric).toBeCloseTo(
+      bands && "over5" in bands
+        ? (bands.over5 + bands.over15 + bands.over30) / 3
+        : Number.NaN,
+      6
+    );
   });
 
   it("ignores functions the coverage report never instrumented", async () => {
     const index = await indexFixture(
       {
+        "coverage/lcov.info": lcov("src/a.ts", [2, 3, 4, 5, 6, 7], []),
         "src/a.ts": BRANCHY,
         "src/untested.ts": "export function other() { return 1; }",
-        "coverage/lcov.info": lcov("src/a.ts", [2, 3, 4, 5, 6, 7], []),
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    const bands = crap.run(scopeIndex(index)).findings.find((f) => f.kind === "crap-bands");
+    const bands = crap
+      .run(scopeIndex(index))
+      .findings.find((f) => f.kind === "crap-bands");
 
     // untested.ts is absent from the report: unknown, which is not zero.
     expect(bands?.functions).toBe(1);
@@ -132,15 +156,18 @@ describe("crap analyzer", () => {
   it("never lets a test file's own coverage into the numbers", async () => {
     const index = await indexFixture(
       {
-        "src/a.ts": BRANCHY,
-        "src/a.test.ts": BRANCHY,
         "coverage/lcov.info":
-          lcov("src/a.ts", [2, 3, 4, 5, 6, 7], []) + lcov("src/a.test.ts", [], [2, 3, 4, 5, 6, 7]),
+          lcov("src/a.ts", [2, 3, 4, 5, 6, 7], []) +
+          lcov("src/a.test.ts", [], [2, 3, 4, 5, 6, 7]),
+        "src/a.test.ts": BRANCHY,
+        "src/a.ts": BRANCHY,
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    const bands = crap.run(scopeIndex(index)).findings.find((f) => f.kind === "crap-bands");
+    const bands = crap
+      .run(scopeIndex(index))
+      .findings.find((f) => f.kind === "crap-bands");
 
     expect(bands?.functions).toBe(1);
   });

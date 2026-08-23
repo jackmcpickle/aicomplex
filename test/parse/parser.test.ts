@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { LANGUAGES } from "../../src/discover/detect.js";
 import { getLanguage } from "../../src/parse/parser.js";
 
@@ -27,13 +28,16 @@ describe("language packs", () => {
     const tree = parser.parse(source);
 
     expect(tree).not.toBeNull();
-    expect(tree!.rootNode.hasError).toBe(false);
+    expect(tree?.rootNode.hasError).toBeFalsy();
 
     tree?.delete();
   });
 
   it("caches the compiled language across calls", async () => {
-    const [first, second] = await Promise.all([getLanguage("go"), getLanguage("go")]);
+    const [first, second] = await Promise.all([
+      getLanguage("go"),
+      getLanguage("go"),
+    ]);
     expect(first).toBe(second);
   });
 });

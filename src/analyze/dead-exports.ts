@@ -1,6 +1,7 @@
 import type { ScoredIndex } from "../index/scope.js";
 import { isLikelyEntrypoint } from "./entrypoints.js";
-import { percent, type Analyzer } from "./types.js";
+import { percent } from "./types.js";
+import type { Analyzer } from "./types.js";
 
 /**
  * Exports nothing in the codebase uses.
@@ -17,13 +18,12 @@ import { percent, type Analyzer } from "./types.js";
  * not calling its own surface is the point of a library.
  */
 export const deadExports: Analyzer = {
+  describe: "Share of exported symbols nothing in the codebase references",
   name: "dead-exports",
   pillar: "slop",
-  describe: "Share of exported symbols nothing in the codebase references",
-
   run(index: ScoredIndex) {
     const exported = [...index.symbols.values()].filter(
-      (symbol) => symbol.exported && !isLikelyEntrypoint(symbol.file),
+      (symbol) => symbol.exported && !isLikelyEntrypoint(symbol.file)
     );
 
     const dead = exported.filter((symbol) => !isReferenced(index, symbol.name));

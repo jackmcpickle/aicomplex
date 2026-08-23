@@ -1,4 +1,5 @@
 import { describe, expect, it, onTestFinished } from "vitest";
+
 import { indexFixture, symbolSummary } from "../helpers/index-fixture.js";
 
 describe("buildIndex — symbols", () => {
@@ -15,10 +16,10 @@ describe("buildIndex — symbols", () => {
           "export enum Colour { Red }",
         ].join("\n"),
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    expect(symbolSummary(index)).toEqual([
+    expect(symbolSummary(index)).toStrictEqual([
       "src/a.ts:greet:function:exported",
       "src/a.ts:shout:function:exported",
       "src/a.ts:secret:variable",
@@ -33,19 +34,24 @@ describe("buildIndex — symbols", () => {
   it("prefers the more specific kind when patterns overlap", async () => {
     const index = await indexFixture(
       { "a.ts": "const handler = () => 1;\nconst count = 2;\n" },
-      onTestFinished,
+      onTestFinished
     );
 
-    expect(symbolSummary(index)).toEqual(["a.ts:handler:function", "a.ts:count:variable"]);
+    expect(symbolSummary(index)).toStrictEqual([
+      "a.ts:handler:function",
+      "a.ts:count:variable",
+    ]);
   });
 
   it("uses the underscore convention for Python visibility", async () => {
     const index = await indexFixture(
-      { "app/main.py": "def public():\n    pass\n\ndef _private():\n    pass\n" },
-      onTestFinished,
+      {
+        "app/main.py": "def public():\n    pass\n\ndef _private():\n    pass\n",
+      },
+      onTestFinished
     );
 
-    expect(symbolSummary(index)).toEqual([
+    expect(symbolSummary(index)).toStrictEqual([
       "app/main.py:public:function:exported",
       "app/main.py:_private:function",
     ]);
@@ -54,13 +60,23 @@ describe("buildIndex — symbols", () => {
   it("honours __all__ when a Python module declares one", async () => {
     const index = await indexFixture(
       {
-        "app/main.py": ['__all__ = ["only_this"]', "", "def only_this():", "    pass", "", "def other():", "    pass"].join("\n"),
+        "app/main.py": [
+          '__all__ = ["only_this"]',
+          "",
+          "def only_this():",
+          "    pass",
+          "",
+          "def other():",
+          "    pass",
+        ].join("\n"),
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    const exported = [...index.symbols.values()].filter((s) => s.exported).map((s) => s.name);
-    expect(exported).toEqual(["only_this"]);
+    const exported = [...index.symbols.values()]
+      .filter((s) => s.exported)
+      .map((s) => s.name);
+    expect(exported).toStrictEqual(["only_this"]);
   });
 
   it("uses capitalisation for Go visibility", async () => {
@@ -76,10 +92,10 @@ describe("buildIndex — symbols", () => {
           "func stop() {}",
         ].join("\n"),
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    expect(symbolSummary(index)).toEqual([
+    expect(symbolSummary(index)).toStrictEqual([
       "cmd/root.go:Server:class:exported",
       "cmd/root.go:Start:function:exported",
       "cmd/root.go:stop:function",
@@ -93,7 +109,7 @@ describe("buildIndex — symbols", () => {
         "b/handler.ts": "export function handler() {}",
         "c/handler.ts": "export function handler() {}",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(index.symbolsByName.get("handler")).toHaveLength(3);
@@ -104,34 +120,44 @@ describe("buildIndex — imports", () => {
   it("records specifiers, bindings and kinds for TypeScript", async () => {
     const index = await indexFixture(
       {
-        "src/util.ts": "export const helper = () => 1;",
         "src/main.ts": [
           "import { helper } from './util.js';",
           "import * as fs from 'node:fs';",
           "import React from 'react';",
           "const lazy = await import('./util.js');",
         ].join("\n"),
+        "src/util.ts": "export const helper = () => 1;",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     const imports = index.imports.filter((i) => i.from === "src/main.ts");
 
     expect(imports).toMatchObject([
-      { source: "./util.js", resolved: "src/util.ts", names: ["helper"], kind: "static" },
-      { source: "node:fs", resolved: null, names: ["fs"], kind: "static" },
-      { source: "react", resolved: null, names: ["React"], kind: "static" },
-      { source: "./util.js", resolved: "src/util.ts", names: [], kind: "dynamic" },
+      {
+        kind: "static",
+        names: ["helper"],
+        resolved: "src/util.ts",
+        source: "./util.js",
+      },
+      { kind: "static", names: ["fs"], resolved: null, source: "node:fs" },
+      { kind: "static", names: ["React"], resolved: null, source: "react" },
+      {
+        kind: "dynamic",
+        names: [],
+        resolved: "src/util.ts",
+        source: "./util.js",
+      },
     ]);
   });
 
   it("resolves an extensionless import to its index file", async () => {
     const index = await indexFixture(
       {
-        "src/util/index.ts": "export const helper = () => 1;",
         "src/main.ts": "import { helper } from './util';",
+        "src/util/index.ts": "export const helper = () => 1;",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(index.imports[0]).toMatchObject({ resolved: "src/util/index.ts" });
@@ -140,53 +166,58 @@ describe("buildIndex — imports", () => {
   it("marks re-exports so barrel chains can be traced", async () => {
     const index = await indexFixture(
       {
-        "src/util.ts": "export const helper = () => 1;",
         "src/index.ts": "export { helper } from './util.js';",
+        "src/util.ts": "export const helper = () => 1;",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(index.imports).toMatchObject([
-      { from: "src/index.ts", resolved: "src/util.ts", kind: "reexport" },
+      { from: "src/index.ts", kind: "reexport", resolved: "src/util.ts" },
     ]);
   });
 
   it("resolves relative Python imports", async () => {
     const index = await indexFixture(
       {
-        "app/util.py": "def helper():\n    pass\n",
         "app/main.py": "from .util import helper\n",
+        "app/util.py": "def helper():\n    pass\n",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(index.imports).toMatchObject([
-      { from: "app/main.py", source: ".util", resolved: "app/util.py", names: ["helper"] },
+      {
+        from: "app/main.py",
+        names: ["helper"],
+        resolved: "app/util.py",
+        source: ".util",
+      },
     ]);
   });
 
   it("resolves absolute Python imports within the scan root", async () => {
     const index = await indexFixture(
       {
-        "app/util.py": "def helper():\n    pass\n",
         "app/main.py": "from app.util import helper\nimport os\n",
+        "app/util.py": "def helper():\n    pass\n",
       },
-      onTestFinished,
+      onTestFinished
     );
 
     expect(index.imports).toMatchObject([
-      { source: "app.util", resolved: "app/util.py" },
-      { source: "os", resolved: null },
+      { resolved: "app/util.py", source: "app.util" },
+      { resolved: null, source: "os" },
     ]);
   });
 
   it("records Go imports as external module paths", async () => {
     const index = await indexFixture(
       { "cmd/root.go": 'package main\n\nimport "fmt"\n' },
-      onTestFinished,
+      onTestFinished
     );
 
-    expect(index.imports).toMatchObject([{ source: "fmt", resolved: null }]);
+    expect(index.imports).toMatchObject([{ resolved: null, source: "fmt" }]);
   });
 });
 
@@ -194,11 +225,12 @@ describe("buildIndex — calls", () => {
   it("attributes a call to the symbol containing it", async () => {
     const index = await indexFixture(
       {
-        "a.ts": ["function inner() { return 1; }", "function outer() { return inner(); }"].join(
-          "\n",
-        ),
+        "a.ts": [
+          "function inner() { return 1; }",
+          "function outer() { return inner(); }",
+        ].join("\n"),
       },
-      onTestFinished,
+      onTestFinished
     );
 
     const call = index.calls.find((c) => c.name === "inner");
@@ -208,9 +240,14 @@ describe("buildIndex — calls", () => {
   });
 
   it("records a top-level call as belonging to no symbol", async () => {
-    const index = await indexFixture({ "a.ts": "console.log('hi');" }, onTestFinished);
+    const index = await indexFixture(
+      { "a.ts": "console.log('hi');" },
+      onTestFinished
+    );
 
-    expect(index.calls).toMatchObject([{ name: "log", fromSymbol: null, line: 1 }]);
+    expect(index.calls).toMatchObject([
+      { fromSymbol: null, line: 1, name: "log" },
+    ]);
   });
 
   it("captures Python and Go call sites", async () => {
@@ -219,10 +256,10 @@ describe("buildIndex — calls", () => {
         "app/main.py": "def run():\n    helper()\n",
         "cmd/root.go": "package main\n\nfunc Run() { helper() }\n",
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    expect(index.calls.map((c) => `${c.from}:${c.name}`)).toEqual([
+    expect(index.calls.map((c) => `${c.from}:${c.name}`)).toStrictEqual([
       "app/main.py:helper",
       "cmd/root.go:helper",
     ]);
@@ -233,12 +270,12 @@ describe("buildIndex — files", () => {
   it("records loc, line count and a content hash", async () => {
     const index = await indexFixture(
       { "a.ts": "const a = 1;\n\nconst b = 2;\n" },
-      onTestFinished,
+      onTestFinished
     );
 
-    const file = index.files.get("a.ts")!;
-    expect(file).toMatchObject({ lines: 4, loc: 2, language: "typescript" });
-    expect(file.hash).toMatch(/^[0-9a-f]{64}$/);
+    const file = index.files.get("a.ts");
+    expect(file).toMatchObject({ language: "typescript", lines: 4, loc: 2 });
+    expect(file?.hash).toMatch(/^[0-9a-f]{64}$/u);
   });
 
   it("indexes every file without failures", async () => {
@@ -250,10 +287,10 @@ describe("buildIndex — files", () => {
         "d.tsx": "export const D = () => <div />;",
         "e.js": "export const e = 1;",
       },
-      onTestFinished,
+      onTestFinished
     );
 
-    expect(index.failures).toEqual([]);
+    expect(index.failures).toStrictEqual([]);
     expect(index.files.size).toBe(5);
   });
 });

@@ -1,5 +1,6 @@
 import type { ScoredIndex } from "../index/scope.js";
-import { percent, type Analyzer } from "./types.js";
+import { percent } from "./types.js";
+import type { Analyzer } from "./types.js";
 
 /**
  * Files caught in circular import chains.
@@ -13,25 +14,37 @@ import { percent, type Analyzer } from "./types.js";
  * than one file is a cycle.
  */
 export const importCycles: Analyzer = {
+  describe: "Share of files trapped in a circular import chain",
   name: "import-cycles",
   pillar: "traceability",
-  describe: "Share of files trapped in a circular import chain",
-
   run(index: ScoredIndex) {
     const graph = buildGraph(index);
-    const components = stronglyConnected(graph).filter((component) => component.length > 1);
+    const components = stronglyConnected(graph).filter(
+      (component) => component.length > 1
+    );
 
-    const inCycle = components.reduce((sum, component) => sum + component.length, 0);
+    const inCycle = components.reduce(
+      (sum, component) => sum + component.length,
+      0
+    );
 
     return {
       metric: percent(inCycle, index.files.size),
       unit: "% of files in an import cycle",
-      findings: components.map((component) => ({
-        kind: "cycle" as const,
-        members: component,
-        file: component[0]!,
-        weight: component.length,
-      })),
+      findings: components.flatMap((component) => {
+        const [file] = component;
+        if (file === undefined) {
+          return [];
+        }
+        return [
+          {
+            kind: "cycle" as const,
+            members: component,
+            file,
+            weight: component.length,
+          },
+        ];
+      }),
     };
   },
 };
@@ -39,12 +52,19 @@ export const importCycles: Analyzer = {
 /** Import graph over scored files only — a cycle among benchmarks is not a defect. */
 function buildGraph(index: ScoredIndex): Map<string, string[]> {
   const graph = new Map<string, string[]>();
-  for (const path of index.files.keys()) graph.set(path, []);
+  for (const path of index.files.keys()) {
+    graph.set(path, []);
+  }
 
   for (const edge of index.imports) {
-    if (!edge.resolved || edge.resolved === edge.from) continue;
-    if (!graph.has(edge.from) || !graph.has(edge.resolved)) continue;
-    graph.get(edge.from)!.push(edge.resolved);
+    if (edge.resolved === null || edge.resolved === edge.from) {
+      continue;
+    }
+    const neighbors = graph.get(edge.from);
+    if (neighbors === undefined || !graph.has(edge.resolved)) {
+      continue;
+    }
+    neighbors.push(edge.resolved);
   }
 
   return graph;
@@ -65,31 +85,45 @@ function stronglyConnected(graph: Map<string, string[]>): string[][] {
   let counter = 0;
 
   for (const root of graph.keys()) {
-    if (indexOf.has(root)) continue;
+    if (indexOf.has(root)) {
+      continue;
+    }
 
-    const work: { node: string; childIndex: number }[] = [{ node: root, childIndex: 0 }];
+    const work: { node: string; childIndex: number }[] = [
+      { childIndex: 0, node: root },
+    ];
 
     while (work.length > 0) {
-      const frame = work.at(-1)!;
+      const frame = work.at(-1);
+      if (frame === undefined) {
+        break;
+      }
       const { node } = frame;
 
       if (frame.childIndex === 0) {
         indexOf.set(node, counter);
         lowLink.set(node, counter);
-        counter++;
+        counter += 1;
         stack.push(node);
         onStack.add(node);
       }
 
       const children = graph.get(node) ?? [];
       if (frame.childIndex < children.length) {
-        const child = children[frame.childIndex]!;
-        frame.childIndex++;
+        const child = children[frame.childIndex];
+        frame.childIndex += 1;
+        if (child === undefined) {
+          continue;
+        }
 
         if (!indexOf.has(child)) {
-          work.push({ node: child, childIndex: 0 });
+          work.push({ childIndex: 0, node: child });
         } else if (onStack.has(child)) {
-          lowLink.set(node, Math.min(lowLink.get(node)!, indexOf.get(child)!));
+          const nodeLow = lowLink.get(node);
+          const childIndex = indexOf.get(child);
+          if (nodeLow !== undefined && childIndex !== undefined) {
+            lowLink.set(node, Math.min(nodeLow, childIndex));
+          }
         }
         continue;
       }
@@ -97,17 +131,26 @@ function stronglyConnected(graph: Map<string, string[]>): string[][] {
       // All children visited: close this node off.
       work.pop();
       const parent = work.at(-1)?.node;
-      if (parent) lowLink.set(parent, Math.min(lowLink.get(parent)!, lowLink.get(node)!));
+      if (parent !== undefined) {
+        const parentLow = lowLink.get(parent);
+        const nodeLow = lowLink.get(node);
+        if (parentLow !== undefined && nodeLow !== undefined) {
+          lowLink.set(parent, Math.min(parentLow, nodeLow));
+        }
+      }
 
       if (lowLink.get(node) === indexOf.get(node)) {
         const component: string[] = [];
-        let member: string;
+        let member: string | undefined;
         do {
-          member = stack.pop()!;
+          member = stack.pop();
+          if (member === undefined) {
+            break;
+          }
           onStack.delete(member);
           component.push(member);
         } while (member !== node);
-        components.push(component.reverse());
+        components.push(component.toReversed());
       }
     }
   }

@@ -1,5 +1,6 @@
 import type { ScoredIndex } from "../index/scope.js";
-import { percent, type Analyzer } from "./types.js";
+import { percent } from "./types.js";
+import type { Analyzer } from "./types.js";
 
 /**
  * How far a re-export chain separates an import site from the real definition.
@@ -15,14 +16,15 @@ import { percent, type Analyzer } from "./types.js";
  * mostly forwards rather than defines.
  */
 export const barrelDepth: Analyzer = {
+  describe: "Share of internal imports that land on a re-export barrel",
   name: "barrel-depth",
   pillar: "findability",
-  describe: "Share of internal imports that land on a re-export barrel",
-
   run(index: ScoredIndex) {
     const barrels = findBarrels(index);
     const internal = index.imports.filter((edge) => edge.resolved !== null);
-    const throughBarrel = internal.filter((edge) => barrels.has(edge.resolved!));
+    const throughBarrel = internal.filter(
+      (edge) => edge.resolved !== null && barrels.has(edge.resolved)
+    );
 
     const hops = new Map<string, number>();
     for (const barrel of barrels) {
@@ -59,7 +61,9 @@ export const barrelDepth: Analyzer = {
 function findBarrels(index: ScoredIndex): Set<string> {
   const reExportsByFile = new Map<string, number>();
   for (const edge of index.imports) {
-    if (edge.kind !== "reexport") continue;
+    if (edge.kind !== "reexport") {
+      continue;
+    }
     reExportsByFile.set(edge.from, (reExportsByFile.get(edge.from) ?? 0) + 1);
   }
 
@@ -70,7 +74,9 @@ function findBarrels(index: ScoredIndex): Set<string> {
 
   const barrels = new Set<string>();
   for (const [file, reExports] of reExportsByFile) {
-    if (reExports >= (ownDefinitions.get(file) ?? 0)) barrels.add(file);
+    if (reExports >= (ownDefinitions.get(file) ?? 0)) {
+      barrels.add(file);
+    }
   }
   return barrels;
 }
@@ -80,14 +86,22 @@ function chainLength(
   index: ScoredIndex,
   file: string,
   barrels: ReadonlySet<string>,
-  seen: Set<string>,
+  seen: Set<string>
 ): number {
-  if (seen.has(file)) return 0; // Cyclic barrels: stop rather than recurse forever.
+  if (seen.has(file)) {
+    return 0;
+  } // Cyclic barrels: stop rather than recurse forever.
   seen.add(file);
 
   let deepest = 0;
   for (const edge of index.imports) {
-    if (edge.from !== file || edge.kind !== "reexport" || !edge.resolved) continue;
+    if (
+      edge.from !== file ||
+      edge.kind !== "reexport" ||
+      edge.resolved === null
+    ) {
+      continue;
+    }
     const next = barrels.has(edge.resolved)
       ? chainLength(index, edge.resolved, barrels, seen)
       : 0;

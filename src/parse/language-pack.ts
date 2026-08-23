@@ -12,7 +12,7 @@ import type { Language } from "../discover/detect.js";
  * That is why TypeScript and JavaScript get separate packs even though the
  * TypeScript grammar is a superset.
  */
-export type LanguagePack = {
+export interface LanguagePack {
   language: Language;
   /** npm subpath of the grammar's prebuilt WASM. */
   wasmSpecifier: string;
@@ -58,7 +58,7 @@ export type LanguagePack = {
    * reference form a query would otherwise have to enumerate individually.
    */
   identifierNodes: readonly string[];
-};
+}
 
 /**
  * Ways code hides a problem instead of handling it.
@@ -76,6 +76,12 @@ export const SMELL_KINDS = [
 ] as const;
 
 export type SmellKind = (typeof SMELL_KINDS)[number];
+
+const SMELL_KIND_SET: ReadonlySet<string> = new Set(SMELL_KINDS);
+
+export function isSmellKind(value: string): value is SmellKind {
+  return SMELL_KIND_SET.has(value);
+}
 
 /** Definition kinds aicc recognises, in order of specificity. */
 export const DEFINITION_KINDS = [
@@ -97,10 +103,15 @@ const KIND_PRIORITY = new Map(DEFINITION_KINDS.map((kind, i) => [kind, i]));
  * When two patterns match the same node, keep the more specific kind — an
  * arrow function assigned to a `const` is a function, not a variable.
  */
-export function moreSpecificKind(a: DefinitionKind, b: DefinitionKind): DefinitionKind {
+export function moreSpecificKind(
+  a: DefinitionKind,
+  b: DefinitionKind
+): DefinitionKind {
   return (KIND_PRIORITY.get(a) ?? 99) <= (KIND_PRIORITY.get(b) ?? 99) ? a : b;
 }
 
+const DEFINITION_KIND_SET: ReadonlySet<string> = new Set(DEFINITION_KINDS);
+
 export function isDefinitionKind(value: string): value is DefinitionKind {
-  return KIND_PRIORITY.has(value as DefinitionKind);
+  return DEFINITION_KIND_SET.has(value);
 }
