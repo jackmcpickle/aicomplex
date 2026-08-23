@@ -29,20 +29,16 @@ export const deadExports: Analyzer = {
     const dead = exported.filter((symbol) => !isReferenced(index, symbol.name));
 
     return {
-      analyzer: deadExports.name,
-      pillar: deadExports.pillar,
       metric: percent(dead.length, exported.length),
       unit: "% of exports nothing references",
-      findings: dead
-        .sort((a, b) => b.endLine - b.startLine - (a.endLine - a.startLine))
-        .slice(0, 25)
-        .map((symbol) => ({
-          message: `${symbol.name} (${symbol.kind}) is exported but never used`,
-          file: symbol.file,
-          line: symbol.startLine,
-          symbol: symbol.name,
-          weight: symbol.endLine - symbol.startLine + 1,
-        })),
+      findings: dead.map((symbol) => ({
+        kind: "dead-export" as const,
+        file: symbol.file,
+        line: symbol.startLine,
+        symbol: symbol.name,
+        definition: symbol.kind,
+        weight: symbol.endLine - symbol.startLine + 1,
+      })),
     };
   },
 };

@@ -32,18 +32,14 @@ export const orphanFiles: Analyzer = {
     const orphans = judged.filter((file) => !imported.has(file.path));
 
     return {
-      analyzer: orphanFiles.name,
-      pillar: orphanFiles.pillar,
       metric: percent(orphans.length, judged.length),
       unit: "% of source files nothing imports",
-      findings: orphans
-        .sort((a, b) => b.loc - a.loc)
-        .slice(0, 25)
-        .map((file) => ({
-          message: `nothing imports ${file.path} (${file.loc} lines)`,
-          file: file.path,
-          weight: file.loc,
-        })),
+      findings: orphans.map((file) => ({
+        kind: "orphan" as const,
+        file: file.path,
+        loc: file.loc,
+        weight: file.loc,
+      })),
     };
   },
 };

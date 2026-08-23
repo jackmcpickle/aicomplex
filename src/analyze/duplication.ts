@@ -35,26 +35,18 @@ export const duplication: Analyzer = {
     const duplicated = clusters.reduce((sum, group) => sum + group.length, 0);
 
     return {
-      analyzer: duplication.name,
-      pillar: duplication.pillar,
       metric: percent(duplicated, candidates.length),
       unit: "% of function bodies duplicated elsewhere",
-      findings: clusters
-        .sort((a, b) => b.length * b[0]!.lines - a.length * a[0]!.lines)
-        .slice(0, 25)
-        .map((group) => {
-          const files = new Set(group.map((fn) => fn.file));
-          const names = [...new Set(group.map((fn) => fn.name))];
-          return {
-            message:
-              `${group.length} copies of the same ${group[0]!.lines}-line body ` +
-              `across ${files.size} file(s): ${names.slice(0, 3).join(", ")}` +
-              `${names.length > 3 ? ", …" : ""}`,
-            file: group[0]!.file,
-            line: group[0]!.startLine,
-            weight: group.length * group[0]!.lines,
-          };
-        }),
+      findings: clusters.map((group) => ({
+        kind: "duplicate-body" as const,
+        file: group[0]!.file,
+        line: group[0]!.startLine,
+        copies: group.length,
+        lines: group[0]!.lines,
+        files: new Set(group.map((fn) => fn.file)).size,
+        names: [...new Set(group.map((fn) => fn.name))],
+        weight: group.length * group[0]!.lines,
+      })),
     };
   },
 };

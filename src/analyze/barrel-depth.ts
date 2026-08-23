@@ -30,8 +30,6 @@ export const barrelDepth: Analyzer = {
     }
 
     return {
-      analyzer: barrelDepth.name,
-      pillar: barrelDepth.pillar,
       metric: percent(throughBarrel.length, internal.length),
       unit: "% of internal imports routed through a barrel",
       findings: [...barrels]
@@ -41,13 +39,11 @@ export const barrelDepth: Analyzer = {
           chain: hops.get(barrel) ?? 1,
         }))
         .filter((entry) => entry.uses > 0)
-        .sort((a, b) => b.uses * b.chain - a.uses * a.chain)
-        .slice(0, 25)
         .map((entry) => ({
-          message:
-            `${entry.barrel} is a barrel used by ${entry.uses} import(s)` +
-            (entry.chain > 1 ? `, ${entry.chain} re-exports deep` : ""),
+          kind: "barrel" as const,
           file: entry.barrel,
+          uses: entry.uses,
+          chain: entry.chain,
           weight: entry.uses * entry.chain,
         })),
     };

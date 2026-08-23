@@ -1,26 +1,19 @@
 import type { ScoredIndex } from "../index/scope.js";
+import type { Finding } from "./findings.js";
 
 export const PILLARS = ["findability", "traceability", "context-cost", "slop"] as const;
 
 export type Pillar = (typeof PILLARS)[number];
 
-/** One concrete thing an agent would trip over, at a specific place in the code. */
-export type Finding = {
-  /** Human-readable, one line, specific enough to act on. */
-  message: string;
-  file?: string;
-  line?: number;
-  symbol?: string;
-  /**
-   * Relative importance within this analyzer's findings. Used only to rank the
-   * report; the score comes from `metric`, not from summing findings.
-   */
-  weight: number;
-};
-
-export type AnalyzerResult = {
-  analyzer: string;
-  pillar: Pillar;
+/**
+ * What an analyzer measured.
+ *
+ * Deliberately does not name the analyzer or its pillar: those are facts the
+ * analyzer already declares, and asking `run` to repeat them back meant every
+ * implementation ended with `analyzer: godFiles.name, pillar: godFiles.pillar`.
+ * `runAnalyzers` stamps them on.
+ */
+export type Measurement = {
   /**
    * The analyzer's headline number, always normalised so higher means worse
    * and the value is comparable across repos of different sizes.
@@ -28,8 +21,16 @@ export type AnalyzerResult = {
   metric: number;
   /** What `metric` counts, for the report. e.g. "% of symbols". */
   unit: string;
-  /** Ranked worst-first. Analyzers cap this themselves; the report shows a few. */
+  /**
+   * In any order, uncapped. `runAnalyzers` ranks by weight and keeps the
+   * worst `MAX_FINDINGS`, so no analyzer has to remember to.
+   */
   findings: Finding[];
+};
+
+export type AnalyzerResult = Measurement & {
+  analyzer: string;
+  pillar: Pillar;
 };
 
 /**
@@ -48,10 +49,12 @@ export type Analyzer = {
   pillar: Pillar;
   /** Shown in the report to explain what the number means. */
   describe: string;
-  run(index: ScoredIndex): AnalyzerResult;
+  run(index: ScoredIndex): Measurement;
 };
 
 /** Convenience for analyzers that need a size-relative percentage. */
 export function percent(part: number, whole: number): number {
   return whole === 0 ? 0 : (part / whole) * 100;
 }
+
+export type { Finding } from "./findings.js";

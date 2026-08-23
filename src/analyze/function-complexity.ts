@@ -23,22 +23,18 @@ export const functionComplexity: Analyzer = {
     );
 
     return {
-      analyzer: functionComplexity.name,
-      pillar: functionComplexity.pillar,
       metric: percent(hard.length, functions.length),
       unit: `% of functions over complexity ${MAX_COMPLEXITY} or depth ${MAX_DEPTH}`,
-      findings: hard
-        .sort((a, b) => b.complexity + b.maxDepth * 3 - (a.complexity + a.maxDepth * 3))
-        .slice(0, 25)
-        .map((fn) => ({
-          message:
-            `${fn.name} has complexity ${fn.complexity} and nests ${fn.maxDepth} deep ` +
-            `over ${fn.lines} lines`,
-          file: fn.file,
-          line: fn.startLine,
-          symbol: fn.name,
-          weight: fn.complexity + fn.maxDepth * 3,
-        })),
+      findings: hard.map((fn) => ({
+        kind: "hard-function" as const,
+        file: fn.file,
+        line: fn.startLine,
+        symbol: fn.name,
+        complexity: fn.complexity,
+        maxDepth: fn.maxDepth,
+        lines: fn.lines,
+        weight: fn.complexity + fn.maxDepth * 3,
+      })),
     };
   },
 };

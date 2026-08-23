@@ -26,18 +26,15 @@ export const godFiles: Analyzer = {
     const totalLoc = files.reduce((sum, file) => sum + file.loc, 0);
 
     return {
-      analyzer: godFiles.name,
-      pillar: godFiles.pillar,
       metric: lineWeightedPercentile(files, totalLoc, 0.5),
       unit: "lines in the file a random line lives in",
       findings: files
-        .slice()
-        .reverse()
         .filter((file) => file.loc > NOTABLE_LOC)
-        .slice(0, 25)
         .map((file) => ({
-          message: `${file.path} is ${file.loc} lines — roughly ${estimateTokens(file)} tokens to read`,
+          kind: "large-file" as const,
           file: file.path,
+          loc: file.loc,
+          bytes: file.bytes,
           weight: file.loc,
         })),
     };
@@ -68,9 +65,3 @@ function lineWeightedPercentile(
 
 /** Files below this are not worth naming in the report, whatever the median is. */
 const NOTABLE_LOC = 400;
-
-/** Rough token count. ~3.5 bytes per token is close enough for code. */
-function estimateTokens(file: FileNode): string {
-  const tokens = Math.round(file.bytes / 3.5);
-  return tokens > 1000 ? `${(tokens / 1000).toFixed(1)}k` : `${tokens}`;
-}

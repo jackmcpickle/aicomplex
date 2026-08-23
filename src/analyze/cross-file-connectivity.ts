@@ -49,22 +49,18 @@ export const crossFileConnectivity: Analyzer = {
     }
 
     return {
-      analyzer: crossFileConnectivity.name,
-      pillar: crossFileConnectivity.pillar,
       metric: percent(sameFile, internal),
       unit: "% of internal calls that never leave their file",
-      findings: [...reimplemented]
-        .map(([file, names]) => ({ file, names: [...names].sort() }))
-        .sort((a, b) => b.names.length - a.names.length)
-        .slice(0, 25)
-        .map(({ file, names }) => ({
-          message:
-            `${file} calls its own ${names.slice(0, 3).map((n) => `${n}()`).join(", ")}` +
-            `${names.length > 3 ? ` and ${names.length - 3} more` : ""} — ` +
-            `also defined in ${definedIn.get(names[0]!)!.size - 1} other file(s)`,
+      findings: [...reimplemented].map(([file, names]) => {
+        const sorted = [...names].sort();
+        return {
+          kind: "reimplemented" as const,
           file,
-          weight: names.length,
-        })),
+          names: sorted,
+          alsoDefinedIn: definedIn.get(sorted[0]!)!.size - 1,
+          weight: sorted.length,
+        };
+      }),
     };
   },
 };

@@ -1,5 +1,6 @@
 import type { ScoredIndex } from "../index/scope.js";
 import type { SmellKind } from "../parse/language-pack.js";
+import type { Finding } from "./findings.js";
 import { type Analyzer } from "./types.js";
 
 /**
@@ -29,38 +30,33 @@ export const errorMasking: Analyzer = {
       byFile.set(smell.file, (byFile.get(smell.file) ?? 0) + 1);
     }
 
-    const findings = [...byKind.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([kind, count]) => ({
-        message: `${count} × ${DESCRIPTIONS[kind]}`,
-        file: smells.find((smell) => smell.kind === kind)!.file,
-        line: smells.find((smell) => smell.kind === kind)!.line,
+    const findings: Finding[] = [...byKind.entries()].map(([kind, count]) => {
+      const first = smells.find((smell) => smell.kind === kind)!;
+      return {
+        kind: "masked-errors",
+        smell: kind,
+        count,
+        file: first.file,
+        line: first.line,
         weight: count,
-      }));
+      };
+    });
 
     const worstFile = [...byFile.entries()].sort((a, b) => b[1] - a[1])[0];
     if (worstFile && worstFile[1] > 1) {
       findings.push({
-        message: `worst file: ${worstFile[0]} with ${worstFile[1]}`,
+        kind: "worst-masking-file",
         file: worstFile[0],
+        count: worstFile[1],
         line: 1,
         weight: worstFile[1],
       });
     }
 
     return {
-      analyzer: errorMasking.name,
-      pillar: errorMasking.pillar,
       metric: loc === 0 ? 0 : (smells.length / loc) * 1000,
       unit: "masked errors per 1k lines",
       findings,
     };
   },
-};
-
-const DESCRIPTIONS: Record<SmellKind, string> = {
-  "empty-catch": "catch block that discards the error",
-  "bare-except": "except clause whose body only passes",
-  "ignore-comment": "comment disabling a linter or type check",
-  "any-type": "`any`, which switches off type checking locally",
 };

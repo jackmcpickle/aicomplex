@@ -50,8 +50,11 @@ describe("duplication", () => {
     const result = duplication.run(scopeIndex(index));
 
     expect(result.metric).toBe(100);
-    expect(result.findings[0]?.message).toContain("2 copies of the same");
-    expect(result.findings[0]?.message).toContain("across 2 file(s)");
+    expect(result.findings[0]).toMatchObject({
+      kind: "duplicate-body",
+      copies: 2,
+      files: 2,
+    });
   });
 
   it("ignores trivial bodies that coincide by chance", async () => {
@@ -89,7 +92,9 @@ describe("error-masking", () => {
     const result = errorMasking.run(scopeIndex(index));
 
     expect(result.metric).toBeGreaterThan(0);
-    expect(result.findings[0]?.message).toContain("catch block that discards the error");
+    expect(result.findings).toContainEqual(
+      expect.objectContaining({ kind: "masked-errors", smell: "empty-catch" }),
+    );
   });
 
   it("flags a Python except clause whose body only passes", async () => {
@@ -98,7 +103,9 @@ describe("error-masking", () => {
       onTestFinished,
     );
 
-    expect(errorMasking.run(scopeIndex(index)).findings[0]?.message).toContain("only passes");
+    expect(errorMasking.run(scopeIndex(index)).findings).toContainEqual(
+      expect.objectContaining({ kind: "masked-errors", smell: "bare-except" }),
+    );
   });
 
   it("flags linter and type-checker suppressions", async () => {
@@ -109,7 +116,9 @@ describe("error-masking", () => {
       onTestFinished,
     );
 
-    expect(errorMasking.run(scopeIndex(index)).findings[0]?.message).toContain("2 ×");
+    expect(errorMasking.run(scopeIndex(index)).findings).toContainEqual(
+      expect.objectContaining({ kind: "masked-errors", count: 2 }),
+    );
   });
 
   it("does not flag ordinary comments", async () => {
@@ -127,7 +136,9 @@ describe("error-masking", () => {
       onTestFinished,
     );
 
-    expect(errorMasking.run(scopeIndex(index)).findings[0]?.message).toContain("`any`");
+    expect(errorMasking.run(scopeIndex(index)).findings).toContainEqual(
+      expect.objectContaining({ kind: "masked-errors", smell: "any-type" }),
+    );
   });
 });
 
@@ -213,7 +224,11 @@ describe("god-files", () => {
     const result = godFiles.run(scopeIndex(index));
 
     expect(result.findings[0]?.file).toBe("src/big.ts");
-    expect(result.findings[0]?.message).toContain("tokens to read");
+    expect(result.findings[0]).toMatchObject({
+      kind: "large-file",
+      loc: expect.any(Number),
+      bytes: expect.any(Number),
+    });
     expect(result.findings.map((f) => f.file)).not.toContain("src/small.ts");
   });
 });
@@ -251,7 +266,11 @@ describe("function-complexity", () => {
     const result = functionComplexity.run(scopeIndex(index));
 
     expect(result.metric).toBe(100);
-    expect(result.findings[0]?.message).toMatch(/nests \d+ deep/);
+    expect(result.findings[0]).toMatchObject({
+      kind: "hard-function",
+      maxDepth: expect.any(Number),
+      complexity: expect.any(Number),
+    });
   });
 
   it("does not treat an else-if chain as nesting", async () => {

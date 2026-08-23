@@ -24,18 +24,14 @@ export const importCycles: Analyzer = {
     const inCycle = components.reduce((sum, component) => sum + component.length, 0);
 
     return {
-      analyzer: importCycles.name,
-      pillar: importCycles.pillar,
       metric: percent(inCycle, index.files.size),
       unit: "% of files in an import cycle",
-      findings: components
-        .sort((a, b) => b.length - a.length)
-        .slice(0, 15)
-        .map((component) => ({
-          message: `${component.length} files form an import cycle: ${component.slice(0, 4).join(" → ")}${component.length > 4 ? " → …" : ""}`,
-          file: component[0]!,
-          weight: component.length,
-        })),
+      findings: components.map((component) => ({
+        kind: "cycle" as const,
+        members: component,
+        file: component[0]!,
+        weight: component.length,
+      })),
     };
   },
 };

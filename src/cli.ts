@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { runAnalyzers } from "./analyze/index.js";
 import { walk } from "./discover/walk.js";
 import { buildIndex } from "./index/build.js";
+import { renderFinding } from "./report/describe.js";
 import { renderTerminalReport } from "./report/terminal.js";
 import { scoreIndex } from "./score/score.js";
 
@@ -47,7 +48,16 @@ program
               imports: index.imports.length,
               calls: index.calls.length,
               failures: index.failures,
-              metrics: results,
+              metrics: results.map((result) => ({
+                ...result,
+                // Findings cross the seam as data; the sentence is derived
+                // here so a consumer can use either without re-implementing
+                // aicc's wording.
+                findings: result.findings.map((finding) => ({
+                  ...finding,
+                  message: renderFinding(finding),
+                })),
+              })),
             },
             null,
             2,

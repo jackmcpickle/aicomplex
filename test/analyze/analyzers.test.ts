@@ -35,7 +35,12 @@ describe("symbol-collision", () => {
     const result = symbolCollision.run(scopeIndex(index));
 
     expect(result.metric).toBe(75); // 3 of 4 definitions are ambiguous.
-    expect(result.findings[0]?.message).toBe('"validate" is defined 3 times across 3 files');
+    expect(result.findings[0]).toMatchObject({
+      kind: "ambiguous-name",
+      name: "validate",
+      definitions: 3,
+      files: 3,
+    });
   });
 
   it("ignores collisions that only occur in tests", async () => {
@@ -150,7 +155,9 @@ describe("barrel-depth", () => {
       onTestFinished,
     );
 
-    expect(barrelDepth.run(scopeIndex(index)).findings[0]?.message).toContain("2 re-exports deep");
+    expect(barrelDepth.run(scopeIndex(index)).findings).toContainEqual(
+      expect.objectContaining({ kind: "barrel", chain: 2 }),
+    );
   });
 });
 
@@ -179,7 +186,8 @@ describe("import-cycles", () => {
     const result = importCycles.run(scopeIndex(index));
 
     expect(result.metric).toBe(100);
-    expect(result.findings[0]?.message).toContain("2 files form an import cycle");
+    const cycle = result.findings.find((finding) => finding.kind === "cycle");
+    expect(cycle?.members).toHaveLength(2);
   });
 
   it("flags a longer cycle without recursing off the stack", async () => {
@@ -251,8 +259,11 @@ describe("cross-file-connectivity", () => {
     const findings = crossFileConnectivity.run(scopeIndex(index)).findings;
 
     expect(findings).toHaveLength(2);
-    expect(findings[0]?.message).toContain("calls its own format()");
-    expect(findings[0]?.message).toContain("also defined in 1 other file(s)");
+    expect(findings[0]).toMatchObject({
+      kind: "reimplemented",
+      names: expect.arrayContaining(["format"]),
+      alsoDefinedIn: 1,
+    });
   });
 
   it("ignores calls into libraries and builtins", async () => {
@@ -338,7 +349,12 @@ describe("runAnalyzers", () => {
     const collision = runAnalyzers(index).find((r) => r.analyzer === "symbol-collision")!;
 
     expect(collision.metric).toBe(100);
-    expect(collision.findings[0]?.message).toBe('"validate" is defined 2 times across 2 files');
+    expect(collision.findings[0]).toMatchObject({
+      kind: "ambiguous-name",
+      name: "validate",
+      definitions: 2,
+      files: 2,
+    });
   });
 
   it("produces no findings on a codebase with no source files", async () => {

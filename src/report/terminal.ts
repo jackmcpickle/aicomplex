@@ -2,6 +2,7 @@ import type { AnalyzerResult, Pillar } from "../analyze/types.js";
 import { PILLARS } from "../analyze/types.js";
 import { FILE_ROLES, SCORED_ROLES } from "../discover/role.js";
 import { scoredFiles } from "../index/scope.js";
+import { renderFinding } from "./describe.js";
 import type { CodeIndex } from "../index/types.js";
 import type { SlopScore } from "../score/score.js";
 
@@ -71,7 +72,7 @@ export function renderTerminalReport(
         `    ${formatMetric(result.metric).padStart(6)}  ${result.analyzer.padEnd(24)} ${dim(result.unit)}`,
       );
       for (const finding of result.findings.slice(0, detail)) {
-        lines.push(dim(`           ${finding.message}`));
+        lines.push(dim(`           ${renderFinding(finding)}`));
       }
       const hidden = result.findings.length - detail;
       if (hidden > 0) lines.push(dim(`           …and ${hidden} more`));
