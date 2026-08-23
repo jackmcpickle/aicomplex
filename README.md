@@ -1,4 +1,4 @@
-# aicc
+# aicc — AI Code Complexity
 
 Measure how much **slop** a codebase is carrying — from the point of view of an
 AI agent trying to work in it.

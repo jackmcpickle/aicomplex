@@ -10,7 +10,9 @@ const program = new Command();
 
 program
   .name("aicc")
-  .description("Measure how much slop a codebase is carrying, from an AI agent's point of view.")
+  .description(
+    "AI Code Complexity — measure how much slop a codebase is carrying, from an AI agent's point of view.",
+  )
   .version("0.0.1");
 
 program

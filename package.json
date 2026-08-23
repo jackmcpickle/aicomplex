@@ -1,7 +1,7 @@
 {
   "name": "aicc",
   "version": "0.0.1",
-  "description": "Measure how much slop a codebase is carrying, from the point of view of an AI agent working in it.",
+  "description": "AI Code Complexity — measure how much slop a codebase is carrying, from the point of view of an AI agent working in it.",
   "type": "module",
   "bin": {
     "aicc": "./dist/cli.js"
