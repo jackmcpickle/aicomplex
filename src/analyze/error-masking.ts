@@ -1,6 +1,6 @@
-import type { CodeIndex } from "../index/types.js";
+import type { ScoredIndex } from "../index/scope.js";
 import type { SmellKind } from "../parse/language-pack.js";
-import { isScored, scoredFiles, type Analyzer } from "./types.js";
+import { type Analyzer } from "./types.js";
 
 /**
  * Constructs that hide a problem rather than handle it.
@@ -18,9 +18,9 @@ export const errorMasking: Analyzer = {
   pillar: "slop",
   describe: "Silenced errors, blanket ignores and escape-hatch types per 1k lines",
 
-  run(index: CodeIndex) {
-    const smells = index.smells.filter((smell) => isScored(index, smell.file));
-    const loc = scoredFiles(index).reduce((sum, file) => sum + file.loc, 0);
+  run(index: ScoredIndex) {
+    const smells = index.smells;
+    const loc = [...index.files.values()].reduce((sum, file) => sum + file.loc, 0);
 
     const byKind = new Map<SmellKind, number>();
     const byFile = new Map<string, number>();

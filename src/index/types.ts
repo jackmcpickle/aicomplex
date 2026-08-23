@@ -94,11 +94,14 @@ export type CodeIndex = {
   /** Powers collision detection: a name with many entries is hard to grep for. */
   symbolsByName: Map<string, SymbolId[]>;
   /**
-   * How often each identifier occurs anywhere in the scan, definitions
-   * included. A name occurring more often than it is defined is referenced
-   * somewhere — including from type annotations, which calls and imports miss.
+   * Per file, how often each identifier occurs in it, definitions included. A
+   * name occurring more often than it is defined is referenced somewhere —
+   * including from type annotations, which calls and imports miss.
+   *
+   * Kept per file so `scopeIndex` can drop unscored files' mentions. Analyzers
+   * see the summed, scored view on `ScoredIndex`.
    */
-  identifierCounts: Map<string, number>;
+  identifierCounts: Map<string, Map<string, number>>;
   imports: ImportEdge[];
   calls: CallEdge[];
   functions: FunctionNode[];

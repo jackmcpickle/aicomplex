@@ -1,5 +1,6 @@
-import type { CodeIndex, FunctionNode } from "../index/types.js";
-import { isScored, percent, type Analyzer } from "./types.js";
+import type { FunctionNode } from "../index/types.js";
+import type { ScoredIndex } from "../index/scope.js";
+import { percent, type Analyzer } from "./types.js";
 
 /**
  * Function bodies that are structurally identical to another body.
@@ -18,9 +19,9 @@ export const duplication: Analyzer = {
   pillar: "slop",
   describe: "Share of function bodies with a structural twin elsewhere",
 
-  run(index: CodeIndex) {
+  run(index: ScoredIndex) {
     const candidates = index.functions.filter(
-      (fn) => isScored(index, fn.file) && fn.shapeSize >= MIN_SHAPE_SIZE,
+      (fn) => fn.shapeSize >= MIN_SHAPE_SIZE,
     );
 
     const byShape = new Map<string, FunctionNode[]>();

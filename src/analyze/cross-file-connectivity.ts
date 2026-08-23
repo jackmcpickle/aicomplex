@@ -1,5 +1,6 @@
-import type { CodeIndex, SymbolNode } from "../index/types.js";
-import { isScored, percent, type Analyzer } from "./types.js";
+import type { SymbolNode } from "../index/types.js";
+import type { ScoredIndex } from "../index/scope.js";
+import { percent, type Analyzer } from "./types.js";
 
 /**
  * How much of the codebase's own code actually calls the rest of it.
@@ -19,7 +20,7 @@ export const crossFileConnectivity: Analyzer = {
   pillar: "traceability",
   describe: "Share of internal calls that stay inside their own file",
 
-  run(index: CodeIndex) {
+  run(index: ScoredIndex) {
     const definedIn = definitionSites(index);
 
     let internal = 0;
@@ -29,8 +30,6 @@ export const crossFileConnectivity: Analyzer = {
     const reimplemented = new Map<string, Set<string>>();
 
     for (const call of index.calls) {
-      if (!isScored(index, call.from)) continue;
-
       const sites = definedIn.get(call.name);
       if (!sites || sites.size === 0) continue; // Library or builtin.
 
@@ -71,11 +70,11 @@ export const crossFileConnectivity: Analyzer = {
 };
 
 /** name → set of files defining it. Name-based, so deliberately approximate. */
-function definitionSites(index: CodeIndex): Map<string, Set<string>> {
+function definitionSites(index: ScoredIndex): Map<string, Set<string>> {
   const sites = new Map<string, Set<string>>();
 
   for (const symbol of index.symbols.values()) {
-    if (!isCallable(symbol) || !isScored(index, symbol.file)) continue;
+    if (!isCallable(symbol)) continue;
     const bucket = sites.get(symbol.name);
     if (bucket) bucket.add(symbol.file);
     else sites.set(symbol.name, new Set([symbol.file]));

@@ -1,5 +1,5 @@
-import type { CodeIndex } from "../index/types.js";
-import { isScored, percent, type Analyzer } from "./types.js";
+import type { ScoredIndex } from "../index/scope.js";
+import { percent, type Analyzer } from "./types.js";
 
 /**
  * How often a symbol name points at more than one definition.
@@ -24,12 +24,12 @@ export const symbolCollision: Analyzer = {
   pillar: "findability",
   describe: "Share of definitions whose name does not uniquely identify them",
 
-  run(index: CodeIndex) {
+  run(index: ScoredIndex) {
     const buckets = new Map<string, string[]>();
 
     const counts = (id: string) => {
       const symbol = index.symbols.get(id);
-      return symbol !== undefined && symbol.kind !== "method" && isScored(index, symbol.file);
+      return symbol !== undefined && symbol.kind !== "method";
     };
 
     for (const [name, ids] of index.symbolsByName) {

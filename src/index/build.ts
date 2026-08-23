@@ -75,7 +75,7 @@ async function indexFile(
     index.calls.push(...collectCalls(compiled, tree, file.path, symbols));
     index.functions.push(...collectFunctions(compiled.pack, tree, file.path, symbols));
     index.smells.push(...collectSmells(compiled, tree, file.path));
-    countIdentifiers(compiled, tree, index.identifierCounts);
+    index.identifierCounts.set(file.path, countIdentifiers(compiled, tree));
   } finally {
     tree.delete();
   }

@@ -5,6 +5,7 @@ import { errorMasking } from "../../src/analyze/error-masking.js";
 import { functionComplexity } from "../../src/analyze/function-complexity.js";
 import { godFiles } from "../../src/analyze/god-files.js";
 import { symbolCollision } from "../../src/analyze/symbol-collision.js";
+import { scopeIndex } from "../../src/index/scope.js";
 import { indexFixture } from "../helpers/index-fixture.js";
 
 /** A body big enough to clear the duplication analyzer's minimum shape size. */
@@ -34,7 +35,7 @@ describe("duplication", () => {
       onTestFinished,
     );
 
-    expect(duplication.run(index).metric).toBe(0);
+    expect(duplication.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("catches a copied body whose variables were all renamed", async () => {
@@ -46,7 +47,7 @@ describe("duplication", () => {
       onTestFinished,
     );
 
-    const result = duplication.run(index);
+    const result = duplication.run(scopeIndex(index));
 
     expect(result.metric).toBe(100);
     expect(result.findings[0]?.message).toContain("2 copies of the same");
@@ -63,7 +64,7 @@ describe("duplication", () => {
       onTestFinished,
     );
 
-    expect(duplication.run(index).metric).toBe(0);
+    expect(duplication.run(scopeIndex(index)).metric).toBe(0);
   });
 });
 
@@ -76,7 +77,7 @@ describe("error-masking", () => {
       onTestFinished,
     );
 
-    expect(errorMasking.run(index).metric).toBe(0);
+    expect(errorMasking.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("flags a catch block that discards the error", async () => {
@@ -85,7 +86,7 @@ describe("error-masking", () => {
       onTestFinished,
     );
 
-    const result = errorMasking.run(index);
+    const result = errorMasking.run(scopeIndex(index));
 
     expect(result.metric).toBeGreaterThan(0);
     expect(result.findings[0]?.message).toContain("catch block that discards the error");
@@ -97,7 +98,7 @@ describe("error-masking", () => {
       onTestFinished,
     );
 
-    expect(errorMasking.run(index).findings[0]?.message).toContain("only passes");
+    expect(errorMasking.run(scopeIndex(index)).findings[0]?.message).toContain("only passes");
   });
 
   it("flags linter and type-checker suppressions", async () => {
@@ -108,7 +109,7 @@ describe("error-masking", () => {
       onTestFinished,
     );
 
-    expect(errorMasking.run(index).findings[0]?.message).toContain("2 ×");
+    expect(errorMasking.run(scopeIndex(index)).findings[0]?.message).toContain("2 ×");
   });
 
   it("does not flag ordinary comments", async () => {
@@ -117,7 +118,7 @@ describe("error-masking", () => {
       onTestFinished,
     );
 
-    expect(errorMasking.run(index).metric).toBe(0);
+    expect(errorMasking.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("flags `any` as switching off type checking", async () => {
@@ -126,7 +127,7 @@ describe("error-masking", () => {
       onTestFinished,
     );
 
-    expect(errorMasking.run(index).findings[0]?.message).toContain("`any`");
+    expect(errorMasking.run(scopeIndex(index)).findings[0]?.message).toContain("`any`");
   });
 });
 
@@ -140,7 +141,7 @@ describe("dead-exports", () => {
       onTestFinished,
     );
 
-    expect(deadExports.run(index).metric).toBe(0);
+    expect(deadExports.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("flags an export nothing references", async () => {
@@ -152,7 +153,7 @@ describe("dead-exports", () => {
       onTestFinished,
     );
 
-    const result = deadExports.run(index);
+    const result = deadExports.run(scopeIndex(index));
     const dead = result.findings.map((f) => f.symbol);
 
     expect(dead).toContain("unused");
@@ -168,7 +169,7 @@ describe("dead-exports", () => {
       onTestFinished,
     );
 
-    expect(deadExports.run(index).findings.map((f) => f.symbol)).not.toContain("helper");
+    expect(deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)).not.toContain("helper");
   });
 });
 
@@ -179,13 +180,13 @@ describe("god-files", () => {
   it("reports the size of a small codebase's files", async () => {
     const index = await indexFixture({ "src/a.ts": lines(50, "a") }, onTestFinished);
 
-    expect(godFiles.run(index).metric).toBe(50);
+    expect(godFiles.run(scopeIndex(index)).metric).toBe(50);
   });
 
   it("reports zero when there is nothing to measure", async () => {
     const index = await indexFixture({ "README.md": "# nothing" }, onTestFinished);
 
-    expect(godFiles.run(index).metric).toBe(0);
+    expect(godFiles.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("weights by lines, so one big file outranks many small ones", async () => {
@@ -200,7 +201,7 @@ describe("god-files", () => {
     );
 
     // 800 lines total; the 400th lives in big.ts, not in one of the small ones.
-    expect(godFiles.run(index).metric).toBe(600);
+    expect(godFiles.run(scopeIndex(index)).metric).toBe(600);
   });
 
   it("names the largest files, with a token estimate", async () => {
@@ -209,7 +210,7 @@ describe("god-files", () => {
       onTestFinished,
     );
 
-    const result = godFiles.run(index);
+    const result = godFiles.run(scopeIndex(index));
 
     expect(result.findings[0]?.file).toBe("src/big.ts");
     expect(result.findings[0]?.message).toContain("tokens to read");
@@ -224,7 +225,7 @@ describe("function-complexity", () => {
       onTestFinished,
     );
 
-    expect(functionComplexity.run(index).metric).toBe(0);
+    expect(functionComplexity.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("flags a deeply nested function", async () => {
@@ -247,7 +248,7 @@ describe("function-complexity", () => {
       onTestFinished,
     );
 
-    const result = functionComplexity.run(index);
+    const result = functionComplexity.run(scopeIndex(index));
 
     expect(result.metric).toBe(100);
     expect(result.findings[0]?.message).toMatch(/nests \d+ deep/);
@@ -324,7 +325,7 @@ describe("dead-exports — reference forms", () => {
       onTestFinished,
     );
 
-    expect(deadExports.run(index).findings.map((f) => f.symbol)).not.toContain("Finding");
+    expect(deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)).not.toContain("Finding");
   });
 
   it("treats a type used in an annotation inside its own module as alive", async () => {
@@ -339,7 +340,7 @@ describe("dead-exports — reference forms", () => {
       onTestFinished,
     );
 
-    expect(deadExports.run(index).findings.map((f) => f.symbol)).not.toContain("Finding");
+    expect(deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)).not.toContain("Finding");
   });
 
   it("still flags a type nothing mentions at all", async () => {
@@ -351,7 +352,7 @@ describe("dead-exports — reference forms", () => {
       onTestFinished,
     );
 
-    expect(deadExports.run(index).findings.map((f) => f.symbol)).toContain("Orphaned");
+    expect(deadExports.run(scopeIndex(index)).findings.map((f) => f.symbol)).toContain("Orphaned");
   });
 });
 
@@ -366,7 +367,7 @@ describe("symbol-collision — interface methods", () => {
       onTestFinished,
     );
 
-    expect(symbolCollision.run(index).metric).toBe(0);
+    expect(symbolCollision.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("still punishes duplicated top-level function names", async () => {
@@ -378,6 +379,6 @@ describe("symbol-collision — interface methods", () => {
       onTestFinished,
     );
 
-    expect(symbolCollision.run(index).metric).toBe(100);
+    expect(symbolCollision.run(scopeIndex(index)).metric).toBe(100);
   });
 });

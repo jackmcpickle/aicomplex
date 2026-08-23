@@ -1,6 +1,7 @@
 import type { AnalyzerResult, Pillar } from "../analyze/types.js";
-import { PILLARS, scoredFiles } from "../analyze/types.js";
+import { PILLARS } from "../analyze/types.js";
 import { FILE_ROLES, SCORED_ROLES } from "../discover/role.js";
+import { scoredFiles } from "../index/scope.js";
 import type { CodeIndex } from "../index/types.js";
 import type { SlopScore } from "../score/score.js";
 

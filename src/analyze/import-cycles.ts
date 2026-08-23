@@ -1,5 +1,5 @@
-import type { CodeIndex } from "../index/types.js";
-import { isScored, percent, scoredFiles, type Analyzer } from "./types.js";
+import type { ScoredIndex } from "../index/scope.js";
+import { percent, type Analyzer } from "./types.js";
 
 /**
  * Files caught in circular import chains.
@@ -17,7 +17,7 @@ export const importCycles: Analyzer = {
   pillar: "traceability",
   describe: "Share of files trapped in a circular import chain",
 
-  run(index: CodeIndex) {
+  run(index: ScoredIndex) {
     const graph = buildGraph(index);
     const components = stronglyConnected(graph).filter((component) => component.length > 1);
 
@@ -26,7 +26,7 @@ export const importCycles: Analyzer = {
     return {
       analyzer: importCycles.name,
       pillar: importCycles.pillar,
-      metric: percent(inCycle, scoredFiles(index).length),
+      metric: percent(inCycle, index.files.size),
       unit: "% of files in an import cycle",
       findings: components
         .sort((a, b) => b.length - a.length)
@@ -41,13 +41,13 @@ export const importCycles: Analyzer = {
 };
 
 /** Import graph over scored files only — a cycle among benchmarks is not a defect. */
-function buildGraph(index: CodeIndex): Map<string, string[]> {
+function buildGraph(index: ScoredIndex): Map<string, string[]> {
   const graph = new Map<string, string[]>();
-  for (const file of scoredFiles(index)) graph.set(file.path, []);
+  for (const path of index.files.keys()) graph.set(path, []);
 
   for (const edge of index.imports) {
     if (!edge.resolved || edge.resolved === edge.from) continue;
-    if (!graph.has(edge.from) || !isScored(index, edge.resolved)) continue;
+    if (!graph.has(edge.from) || !graph.has(edge.resolved)) continue;
     graph.get(edge.from)!.push(edge.resolved);
   }
 

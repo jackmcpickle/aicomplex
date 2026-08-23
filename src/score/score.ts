@@ -1,5 +1,6 @@
 import type { AnalyzerResult, Pillar } from "../analyze/types.js";
-import { PILLARS, scoredFiles } from "../analyze/types.js";
+import { PILLARS } from "../analyze/types.js";
+import { scoredFiles } from "../index/scope.js";
 import type { CodeIndex } from "../index/types.js";
 import { ANCHORS, PILLAR_WEIGHTS } from "./anchors.js";
 

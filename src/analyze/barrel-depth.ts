@@ -1,5 +1,5 @@
-import type { CodeIndex } from "../index/types.js";
-import { isScored, percent, type Analyzer } from "./types.js";
+import type { ScoredIndex } from "../index/scope.js";
+import { percent, type Analyzer } from "./types.js";
 
 /**
  * How far a re-export chain separates an import site from the real definition.
@@ -19,11 +19,9 @@ export const barrelDepth: Analyzer = {
   pillar: "findability",
   describe: "Share of internal imports that land on a re-export barrel",
 
-  run(index: CodeIndex) {
+  run(index: ScoredIndex) {
     const barrels = findBarrels(index);
-    const internal = index.imports.filter(
-      (edge) => edge.resolved !== null && isScored(index, edge.from) && isScored(index, edge.resolved),
-    );
+    const internal = index.imports.filter((edge) => edge.resolved !== null);
     const throughBarrel = internal.filter((edge) => barrels.has(edge.resolved!));
 
     const hops = new Map<string, number>();
@@ -62,7 +60,7 @@ export const barrelDepth: Analyzer = {
  * The "defines little" test matters: a module with one re-export alongside
  * real code is a normal module, not an indirection layer.
  */
-function findBarrels(index: CodeIndex): Set<string> {
+function findBarrels(index: ScoredIndex): Set<string> {
   const reExportsByFile = new Map<string, number>();
   for (const edge of index.imports) {
     if (edge.kind !== "reexport") continue;
@@ -76,7 +74,6 @@ function findBarrels(index: CodeIndex): Set<string> {
 
   const barrels = new Set<string>();
   for (const [file, reExports] of reExportsByFile) {
-    if (!isScored(index, file)) continue;
     if (reExports >= (ownDefinitions.get(file) ?? 0)) barrels.add(file);
   }
   return barrels;
@@ -84,7 +81,7 @@ function findBarrels(index: CodeIndex): Set<string> {
 
 /** Longest chain of barrel-to-barrel re-exports starting at `file`. */
 function chainLength(
-  index: CodeIndex,
+  index: ScoredIndex,
   file: string,
   barrels: ReadonlySet<string>,
   seen: Set<string>,

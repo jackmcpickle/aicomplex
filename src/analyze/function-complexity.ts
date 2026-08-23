@@ -1,5 +1,5 @@
-import type { CodeIndex } from "../index/types.js";
-import { isScored, percent, type Analyzer } from "./types.js";
+import type { ScoredIndex } from "../index/scope.js";
+import { percent, type Analyzer } from "./types.js";
 
 /**
  * Functions with more branching or nesting than can be held in mind at once.
@@ -16,8 +16,8 @@ export const functionComplexity: Analyzer = {
   pillar: "context-cost",
   describe: "Share of functions too branchy or too deeply nested to follow",
 
-  run(index: CodeIndex) {
-    const functions = index.functions.filter((fn) => isScored(index, fn.file));
+  run(index: ScoredIndex) {
+    const functions = index.functions;
     const hard = functions.filter(
       (fn) => fn.complexity > MAX_COMPLEXITY || fn.maxDepth > MAX_DEPTH,
     );

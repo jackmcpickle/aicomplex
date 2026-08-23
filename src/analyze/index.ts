@@ -1,3 +1,4 @@
+import { scopeIndex } from "../index/scope.js";
 import type { CodeIndex } from "../index/types.js";
 import { barrelDepth } from "./barrel-depth.js";
 import { crossFileConnectivity } from "./cross-file-connectivity.js";
@@ -32,8 +33,15 @@ export const ANALYZERS: readonly Analyzer[] = [
   deadExports,
 ];
 
+/**
+ * The single door into the analyzer set.
+ *
+ * Narrowing happens here, once, so no analyzer can be handed anything but
+ * shipped source and no caller has to remember to do it.
+ */
 export function runAnalyzers(index: CodeIndex): AnalyzerResult[] {
-  return ANALYZERS.map((analyzer) => analyzer.run(index));
+  const scored = scopeIndex(index);
+  return ANALYZERS.map((analyzer) => analyzer.run(scored));
 }
 
 export * from "./types.js";

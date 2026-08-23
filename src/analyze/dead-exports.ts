@@ -1,6 +1,6 @@
-import type { CodeIndex } from "../index/types.js";
+import type { ScoredIndex } from "../index/scope.js";
 import { isLikelyEntrypoint } from "./entrypoints.js";
-import { isScored, percent, type Analyzer } from "./types.js";
+import { percent, type Analyzer } from "./types.js";
 
 /**
  * Exports nothing in the codebase uses.
@@ -21,10 +21,9 @@ export const deadExports: Analyzer = {
   pillar: "slop",
   describe: "Share of exported symbols nothing in the codebase references",
 
-  run(index: CodeIndex) {
+  run(index: ScoredIndex) {
     const exported = [...index.symbols.values()].filter(
-      (symbol) =>
-        symbol.exported && isScored(index, symbol.file) && !isLikelyEntrypoint(symbol.file),
+      (symbol) => symbol.exported && !isLikelyEntrypoint(symbol.file),
     );
 
     const dead = exported.filter((symbol) => !isReferenced(index, symbol.name));
@@ -56,7 +55,7 @@ export const deadExports: Analyzer = {
  * toward "used": a name shared with something unrelated will look alive, which
  * is the safe direction for an analyzer that accuses code of being dead.
  */
-function isReferenced(index: CodeIndex, name: string): boolean {
+function isReferenced(index: ScoredIndex, name: string): boolean {
   const occurrences = index.identifierCounts.get(name) ?? 0;
   const definitions = index.symbolsByName.get(name)?.length ?? 1;
   return occurrences > definitions;

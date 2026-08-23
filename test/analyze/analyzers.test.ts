@@ -5,6 +5,7 @@ import { importCycles } from "../../src/analyze/import-cycles.js";
 import { orphanFiles } from "../../src/analyze/orphan-files.js";
 import { symbolCollision } from "../../src/analyze/symbol-collision.js";
 import { runAnalyzers } from "../../src/analyze/index.js";
+import { scopeIndex } from "../../src/index/scope.js";
 import { indexFixture } from "../helpers/index-fixture.js";
 
 describe("symbol-collision", () => {
@@ -17,7 +18,7 @@ describe("symbol-collision", () => {
       onTestFinished,
     );
 
-    expect(symbolCollision.run(index).metric).toBe(0);
+    expect(symbolCollision.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("flags a name defined in several files", async () => {
@@ -31,7 +32,7 @@ describe("symbol-collision", () => {
       onTestFinished,
     );
 
-    const result = symbolCollision.run(index);
+    const result = symbolCollision.run(scopeIndex(index));
 
     expect(result.metric).toBe(75); // 3 of 4 definitions are ambiguous.
     expect(result.findings[0]?.message).toBe('"validate" is defined 3 times across 3 files');
@@ -47,7 +48,7 @@ describe("symbol-collision", () => {
       onTestFinished,
     );
 
-    expect(symbolCollision.run(index).metric).toBe(0);
+    expect(symbolCollision.run(scopeIndex(index)).metric).toBe(0);
   });
 });
 
@@ -61,7 +62,7 @@ describe("orphan-files", () => {
       onTestFinished,
     );
 
-    expect(orphanFiles.run(index).metric).toBe(0);
+    expect(orphanFiles.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("flags a file nothing imports", async () => {
@@ -74,7 +75,7 @@ describe("orphan-files", () => {
       onTestFinished,
     );
 
-    const result = orphanFiles.run(index);
+    const result = orphanFiles.run(scopeIndex(index));
 
     expect(result.metric).toBe(50); // leftover.ts of {used.ts, leftover.ts}; index.ts is an entrypoint.
     expect(result.findings[0]?.file).toBe("src/leftover.ts");
@@ -91,7 +92,7 @@ describe("orphan-files", () => {
       onTestFinished,
     );
 
-    expect(orphanFiles.run(index).findings).toEqual([]);
+    expect(orphanFiles.run(scopeIndex(index)).findings).toEqual([]);
   });
 
   it("does not judge Go, where package files need no imports", async () => {
@@ -103,7 +104,7 @@ describe("orphan-files", () => {
       onTestFinished,
     );
 
-    expect(orphanFiles.run(index).metric).toBe(0);
+    expect(orphanFiles.run(scopeIndex(index)).metric).toBe(0);
   });
 });
 
@@ -117,7 +118,7 @@ describe("barrel-depth", () => {
       onTestFinished,
     );
 
-    expect(barrelDepth.run(index).metric).toBe(0);
+    expect(barrelDepth.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("flags imports routed through a re-export barrel", async () => {
@@ -131,7 +132,7 @@ describe("barrel-depth", () => {
       onTestFinished,
     );
 
-    const result = barrelDepth.run(index);
+    const result = barrelDepth.run(scopeIndex(index));
 
     expect(result.metric).toBe(50); // 1 of 2 internal edges lands on the barrel.
     expect(result.findings[0]?.file).toBe("src/lib/index.ts");
@@ -149,7 +150,7 @@ describe("barrel-depth", () => {
       onTestFinished,
     );
 
-    expect(barrelDepth.run(index).findings[0]?.message).toContain("2 re-exports deep");
+    expect(barrelDepth.run(scopeIndex(index)).findings[0]?.message).toContain("2 re-exports deep");
   });
 });
 
@@ -163,7 +164,7 @@ describe("import-cycles", () => {
       onTestFinished,
     );
 
-    expect(importCycles.run(index).metric).toBe(0);
+    expect(importCycles.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("flags a two-file cycle", async () => {
@@ -175,7 +176,7 @@ describe("import-cycles", () => {
       onTestFinished,
     );
 
-    const result = importCycles.run(index);
+    const result = importCycles.run(scopeIndex(index));
 
     expect(result.metric).toBe(100);
     expect(result.findings[0]?.message).toContain("2 files form an import cycle");
@@ -192,7 +193,7 @@ describe("import-cycles", () => {
       onTestFinished,
     );
 
-    const result = importCycles.run(index);
+    const result = importCycles.run(scopeIndex(index));
 
     expect(result.findings).toHaveLength(1);
     expect(result.findings[0]?.weight).toBe(3);
@@ -211,7 +212,7 @@ describe("cross-file-connectivity", () => {
       onTestFinished,
     );
 
-    expect(crossFileConnectivity.run(index).metric).toBe(0);
+    expect(crossFileConnectivity.run(scopeIndex(index)).metric).toBe(0);
   });
 
   it("scores high when every file only calls itself", async () => {
@@ -223,7 +224,7 @@ describe("cross-file-connectivity", () => {
       onTestFinished,
     );
 
-    expect(crossFileConnectivity.run(index).metric).toBe(100);
+    expect(crossFileConnectivity.run(scopeIndex(index)).metric).toBe(100);
   });
 
   it("does not flag a file for calling its own private helper", async () => {
@@ -235,7 +236,7 @@ describe("cross-file-connectivity", () => {
       onTestFinished,
     );
 
-    expect(crossFileConnectivity.run(index).findings).toEqual([]);
+    expect(crossFileConnectivity.run(scopeIndex(index)).findings).toEqual([]);
   });
 
   it("flags a local helper whose name is also defined elsewhere", async () => {
@@ -247,7 +248,7 @@ describe("cross-file-connectivity", () => {
       onTestFinished,
     );
 
-    const findings = crossFileConnectivity.run(index).findings;
+    const findings = crossFileConnectivity.run(scopeIndex(index)).findings;
 
     expect(findings).toHaveLength(2);
     expect(findings[0]?.message).toContain("calls its own format()");
@@ -260,7 +261,7 @@ describe("cross-file-connectivity", () => {
       onTestFinished,
     );
 
-    expect(crossFileConnectivity.run(index).metric).toBe(0);
+    expect(crossFileConnectivity.run(scopeIndex(index)).metric).toBe(0);
   });
 });
 
@@ -315,11 +316,12 @@ describe("runAnalyzers", () => {
     const before = runAnalyzers(clean);
     const after = runAnalyzers(noisy);
 
-    // dead-exports can legitimately go *down*: a name also defined in a
-    // benchmark is ambiguous, so it stops being confidently dead. Nothing may
-    // go up.
+    // Nothing outside shipped source reaches an analyzer at all, so noise may
+    // not move a metric in either direction. This used to allow dead-exports
+    // to fall, because a name also defined in a benchmark counted as a
+    // reference and stopped the export looking confidently dead.
     for (const [i, result] of after.entries()) {
-      expect(result.metric, result.analyzer).toBeLessThanOrEqual(before[i]!.metric);
+      expect(result.metric, result.analyzer).toBe(before[i]!.metric);
     }
   });
 

@@ -1,5 +1,6 @@
-import type { CodeIndex, FileNode } from "../index/types.js";
-import { scoredFiles, type Analyzer } from "./types.js";
+import type { FileNode } from "../index/types.js";
+import type { ScoredIndex } from "../index/scope.js";
+import { type Analyzer } from "./types.js";
 
 /**
  * How big the file is that a randomly chosen line lives in.
@@ -20,8 +21,8 @@ export const godFiles: Analyzer = {
   pillar: "context-cost",
   describe: "Size of the file a randomly chosen line lives in",
 
-  run(index: CodeIndex) {
-    const files = scoredFiles(index).sort((a, b) => a.loc - b.loc);
+  run(index: ScoredIndex) {
+    const files = [...index.files.values()].sort((a, b) => a.loc - b.loc);
     const totalLoc = files.reduce((sum, file) => sum + file.loc, 0);
 
     return {

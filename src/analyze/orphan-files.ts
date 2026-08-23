@@ -1,6 +1,6 @@
-import type { CodeIndex } from "../index/types.js";
+import type { ScoredIndex } from "../index/scope.js";
 import { isLikelyEntrypoint } from "./entrypoints.js";
-import { percent, scoredFiles, type Analyzer } from "./types.js";
+import { percent, type Analyzer } from "./types.js";
 
 /**
  * Files that nothing in the codebase imports.
@@ -17,7 +17,7 @@ export const orphanFiles: Analyzer = {
   pillar: "findability",
   describe: "Share of source files that nothing imports",
 
-  run(index: CodeIndex) {
+  run(index: ScoredIndex) {
     const imported = new Set<string>();
     for (const edge of index.imports) {
       if (edge.resolved) imported.add(edge.resolved);
@@ -26,7 +26,7 @@ export const orphanFiles: Analyzer = {
     // Go's package model means files in a package are used without importing
     // one another, so unimported Go files say nothing. Only judge languages
     // where imports are file-to-file.
-    const judged = scoredFiles(index).filter(
+    const judged = [...index.files.values()].filter(
       (file) => file.language !== "go" && !isLikelyEntrypoint(file.path),
     );
     const orphans = judged.filter((file) => !imported.has(file.path));
