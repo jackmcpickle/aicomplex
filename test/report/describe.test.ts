@@ -78,6 +78,25 @@ const SAMPLES: Record<FindingKind, Finding> = {
     definition: "function",
     weight: 3,
   },
+  "crap-function": {
+    kind: "crap-function",
+    file: "src/a.ts",
+    line: 12,
+    symbol: "parse",
+    crap: 37.1,
+    complexity: 11,
+    coverage: 40,
+    weight: 37.1,
+  },
+  "crap-bands": {
+    kind: "crap-bands",
+    functions: 210,
+    over5: 31.4,
+    over15: 12.2,
+    over30: 4.8,
+    weight: Number.MAX_SAFE_INTEGER,
+  },
+  "coverage-missing": { kind: "coverage-missing", weight: 1 },
 };
 
 describe("renderFinding", () => {

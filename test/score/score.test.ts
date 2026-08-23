@@ -31,6 +31,7 @@ function indexOfSize(loc: number): CodeIndex {
     functions: [],
     smells: [],
     failures: [],
+    coverage: null,
   };
 }
 

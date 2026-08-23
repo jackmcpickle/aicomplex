@@ -61,6 +61,23 @@ export function renderFinding(finding: Finding): string {
 
     case "dead-export":
       return `${finding.symbol} (${finding.definition}) is exported but never used`;
+
+    case "crap-bands":
+      return (
+        `${finding.functions} covered functions — ` +
+        `${finding.over5.toFixed(0)}% over 5, ` +
+        `${finding.over15.toFixed(0)}% over 15, ` +
+        `${finding.over30.toFixed(0)}% over 30`
+      );
+
+    case "crap-function":
+      return (
+        `${finding.symbol} scores ${finding.crap.toFixed(0)} ` +
+        `(complexity ${finding.complexity}, ${finding.coverage.toFixed(0)}% covered)`
+      );
+
+    case "coverage-missing":
+      return "no coverage data — run your tests with an lcov reporter first, e.g. vitest run --coverage";
   }
 }
 

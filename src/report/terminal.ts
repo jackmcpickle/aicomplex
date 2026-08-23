@@ -11,6 +11,7 @@ const PILLAR_TITLES: Record<Pillar, string> = {
   traceability: "Traceability — can an agent follow a change?",
   "context-cost": "Context cost — how much must it read?",
   slop: "Slop signals — the AI tells",
+  "change-risk": "Change risk — complexity nothing tests (not scored)",
 };
 
 const useColour = process.stdout.isTTY === true && !process.env["NO_COLOR"];

@@ -1,4 +1,5 @@
 import type { Language } from "../discover/detect.js";
+import type { Coverage } from "../discover/lcov.js";
 import type { FileRole } from "../discover/role.js";
 import type { DefinitionKind, SmellKind } from "../parse/language-pack.js";
 
@@ -108,4 +109,12 @@ export type CodeIndex = {
   smells: Smell[];
   /** Files that could not be parsed, with the reason. Never silently dropped. */
   failures: { path: string; reason: string }[];
+  /**
+   * Line coverage, when an lcov report was found.
+   *
+   * Null is the normal case: aicc is usually pointed at a checkout nobody has
+   * run tests in. Metrics that need coverage say so rather than treating
+   * "unknown" as "zero".
+   */
+  coverage: Coverage | null;
 };

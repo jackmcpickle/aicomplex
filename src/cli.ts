@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { runAnalyzers } from "./analyze/index.js";
+import { DEFAULT_LCOV_PATH, readLcov } from "./discover/lcov.js";
 import { walk } from "./discover/walk.js";
 import { buildIndex } from "./index/build.js";
 import { renderFinding } from "./report/describe.js";
@@ -24,13 +25,21 @@ program
   .option("--detail <n>", "findings to show per metric", (value) => Number.parseInt(value, 10), 3)
   .option("--exclude <glob...>", "additional glob patterns to exclude")
   .option("--why", "explain the threshold behind each metric")
+  .option("--lcov <path>", "lcov report to read coverage from", DEFAULT_LCOV_PATH)
   .action(
     async (
       target: string,
-      options: { json?: boolean; detail: number; exclude?: string[]; why?: boolean },
+      options: {
+        json?: boolean;
+        detail: number;
+        exclude?: string[];
+        why?: boolean;
+        lcov: string;
+      },
     ) => {
       const files = await walk(target, options.exclude ? { exclude: options.exclude } : {});
-      const index = await buildIndex(target, files);
+      const coverage = await readLcov(target, options.lcov);
+      const index = await buildIndex(target, files, coverage);
       const results = runAnalyzers(index);
       const score = scoreIndex(index, results);
 
@@ -49,6 +58,7 @@ program
               imports: index.imports.length,
               calls: index.calls.length,
               failures: index.failures,
+              coverage: coverage === null ? null : { files: coverage.size, lcov: options.lcov },
               metrics: results.map((result) => ({
                 ...result,
                 // Findings cross the seam as data; the sentence is derived

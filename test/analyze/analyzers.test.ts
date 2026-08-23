@@ -293,6 +293,7 @@ describe("runAnalyzers", () => {
       "duplication",
       "error-masking",
       "dead-exports",
+      "crap",
     ]);
     for (const result of results) {
       expect(result.metric).toBeGreaterThanOrEqual(0);
@@ -361,8 +362,12 @@ describe("runAnalyzers", () => {
     const index = await indexFixture({ "README.md": "# nothing" }, onTestFinished);
 
     for (const result of runAnalyzers(index)) {
-      expect(result.metric).toBe(0);
-      expect(result.findings).toEqual([]);
+      expect(result.metric, result.analyzer).toBe(0);
+
+      // crap is the exception: with no lcov report it says so rather than
+      // reporting a clean zero, because unknown is not the same as good.
+      const expected = result.analyzer === "crap" ? [{ kind: "coverage-missing", weight: 1 }] : [];
+      expect(result.findings, result.analyzer).toEqual(expected);
     }
   });
 });

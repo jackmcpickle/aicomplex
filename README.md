@@ -60,7 +60,8 @@ absolute measurement.
 
 ## What it measures
 
-Four pillars. Every metric is normalised so **higher is worse**.
+Five pillars — four scored, one reported. Every metric is normalised so
+**higher is worse**.
 
 **Findability** — can an agent locate things?
 - `symbol-collision` — share of definitions whose name doesn't uniquely identify them
@@ -80,6 +81,9 @@ Four pillars. Every metric is normalised so **higher is worse**.
 - `error-masking` — silenced errors, blanket ignores and `any` per 1k lines
 - `dead-exports` — share of exports nothing references
 
+**Change risk** — complexity nothing tests. *Reported, not scored.*
+- `crap` — share of functions over CRAP 5 / 15 / 30, averaged
+
 Only shipped source is scored. Benchmarks, examples, docs, scripts and tests
 are classified and skipped — they legitimately repeat names and sit unimported,
 so scoring them turns real signal into noise.
@@ -87,6 +91,46 @@ so scoring them turns real signal into noise.
 Duplication matches on the AST shape with identifiers and literals erased, so a
 copied function whose variables were renamed still counts. Token-based
 detectors miss exactly that case, which is the one agents produce most.
+
+## CRAP
+
+Change Risk Anti-Patterns, from Savoia and Evans' Crap4j (2007):
+
+```
+CRAP(f) = complexity² × (1 − coverage)³ + complexity
+```
+
+Coverage is cubed, so a complex function that is well tested is nearly as safe
+to change as a simple one. Complexity alone isn't risk — complexity you can't
+verify is.
+
+It needs a coverage report, which aicc can't produce from source alone:
+
+```bash
+pnpm coverage                 # writes coverage/lcov.info
+aicc                          # picks it up automatically
+aicc --lcov path/to/lcov.info # or point at one
+```
+
+Without a report, `crap` says so rather than reporting a clean zero — unknown
+coverage is not the same as good coverage.
+
+**It's reported but deliberately excluded from the Slop Score.** Every other
+metric is computable from a checkout alone. Letting CRAP into the score would
+mean a repo with tests and a repo without are graded on different metrics, and
+the score is meant for comparison.
+
+Three thresholds rather than the conventional single cutoff of 30: a codebase
+where every function sits at 29 and one where they all sit at 6 both score zero
+against `maxCrap: 30`. Averaging the share over 5, 15 and 30 gives a number
+that moves with the whole distribution.
+
+aicc's cyclomatic complexity isn't identical to
+[eslint-plugin-crap](https://www.npmjs.com/package/eslint-plugin-crap)'s. aicc
+attributes a nested function's branches to that function rather than its
+parent, and doesn't count `&&`/`||` as decision points. Expect the same
+function to score somewhat lower here.
+
 
 ## Example
 
@@ -129,6 +173,7 @@ static analysis cannot make.
 ```bash
 pnpm install
 pnpm test          # unit tests, one fixture per analyzer
+pnpm coverage      # writes coverage/lcov.info, which the crap metric reads
 pnpm typecheck
 pnpm dev scan .    # run from source
 ```

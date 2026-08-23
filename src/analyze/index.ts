@@ -1,6 +1,7 @@
 import { scopeIndex } from "../index/scope.js";
 import type { CodeIndex } from "../index/types.js";
 import { barrelDepth } from "./barrel-depth.js";
+import { crap } from "./crap.js";
 import { crossFileConnectivity } from "./cross-file-connectivity.js";
 import { deadExports } from "./dead-exports.js";
 import { duplication } from "./duplication.js";
@@ -32,6 +33,7 @@ export const ANALYZERS: readonly Analyzer[] = [
   duplication,
   errorMasking,
   deadExports,
+  crap,
 ];
 
 /**

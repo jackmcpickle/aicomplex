@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import type { Coverage } from "../discover/lcov.js";
 import type { DiscoveredFile } from "../discover/walk.js";
 import { getLanguage } from "../parse/parser.js";
 import { collectCalls } from "./collect/calls.js";
@@ -17,7 +18,11 @@ import type { CodeIndex, FileNode } from "./types.js";
  * analyzers stay pure and testable against a hand-built index. Each collector
  * lives in `./collect` and owns exactly one kind of fact.
  */
-export async function buildIndex(root: string, files: DiscoveredFile[]): Promise<CodeIndex> {
+export async function buildIndex(
+  root: string,
+  files: DiscoveredFile[],
+  coverage: Coverage | null = null,
+): Promise<CodeIndex> {
   const index: CodeIndex = {
     root,
     files: new Map(),
@@ -29,6 +34,7 @@ export async function buildIndex(root: string, files: DiscoveredFile[]): Promise
     functions: [],
     smells: [],
     failures: [],
+    coverage,
   };
 
   const knownFiles = new Set(files.map((file) => file.path));

@@ -37,6 +37,15 @@ export type Finding = Located &
     | { kind: "masked-errors"; smell: SmellKind; count: number }
     | { kind: "worst-masking-file"; count: number }
     | { kind: "dead-export"; definition: DefinitionKind }
+    | { kind: "crap-function"; crap: number; complexity: number; coverage: number }
+    | {
+        kind: "crap-bands";
+        functions: number;
+        over5: number;
+        over15: number;
+        over30: number;
+      }
+    | { kind: "coverage-missing" }
   );
 
 export type FindingKind = Finding["kind"];

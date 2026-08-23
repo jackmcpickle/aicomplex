@@ -1,7 +1,13 @@
 import type { ScoredIndex } from "../index/scope.js";
 import type { Finding } from "./findings.js";
 
-export const PILLARS = ["findability", "traceability", "context-cost", "slop"] as const;
+export const PILLARS = [
+  "findability",
+  "traceability",
+  "context-cost",
+  "slop",
+  "change-risk",
+] as const;
 
 export type Pillar = (typeof PILLARS)[number];
 

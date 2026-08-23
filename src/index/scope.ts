@@ -80,6 +80,10 @@ function narrow(index: CodeIndex): ScoredIndex {
     calls: index.calls.filter((call) => keeps(call.from)),
     functions: index.functions.filter((fn) => keeps(fn.file)),
     smells: index.smells.filter((smell) => keeps(smell.file)),
+    coverage:
+      index.coverage === null
+        ? null
+        : new Map([...index.coverage].filter(([path]) => keeps(path))),
   } as ScoredIndex;
 }
 

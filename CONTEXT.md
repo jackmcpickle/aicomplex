@@ -54,7 +54,15 @@ the reasoning that justifies it. Reasoned, not corpus-derived.
 **Severity** — a metric mapped onto 0–100 against its anchor.
 
 **Pillar** — which agent cost a metric belongs to: `findability`,
-`traceability`, `context-cost`, `slop`.
+`traceability`, `context-cost`, `slop`, `change-risk`.
+
+**Coverage** — line hits read from an lcov report, when one exists. Null is the
+normal state, and it means *unknown*, never *zero*. Only `change-risk` needs
+it.
+
+**CRAP** — Change Risk Anti-Patterns: `complexity² × (1 − coverage)³ +
+complexity`. The one metric aicc cannot compute from source alone, and so the
+one deliberately left out of the Slop Score.
 
 **Slop Score** — the single 0–100 number, higher being worse, after pillars are
 combined and size is accounted for twice: problems weigh more at scale, and
