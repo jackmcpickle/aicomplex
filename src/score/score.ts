@@ -11,6 +11,18 @@ export type MetricScore = {
   raw: number;
   /** 0–100, where 0 is at or better than the good anchor. */
   severity: number;
+  /** At or below this the metric contributes nothing. */
+  good: number;
+  /** At or above this it contributes everything. */
+  bad: number;
+  /**
+   * Why those two numbers.
+   *
+   * Carried through with the score rather than left in the source, because a
+   * threshold nobody can see is a threshold nobody argues with — and these are
+   * reasoned, not corpus-derived.
+   */
+  why: string;
 };
 
 export type PillarScore = {
@@ -72,13 +84,17 @@ export function scoreIndex(index: CodeIndex, results: AnalyzerResult[]): SlopSco
   const metrics: MetricScore[] = [];
 
   for (const result of results) {
+    const anchor = ANCHORS[result.analyzer];
     const severity = severityOf(result.analyzer, result.metric);
-    if (severity === null) continue;
+    if (severity === null || !anchor) continue;
     metrics.push({
       analyzer: result.analyzer,
       pillar: result.pillar,
       raw: result.metric,
       severity,
+      good: anchor.good,
+      bad: anchor.bad,
+      why: anchor.rationale,
     });
   }
 

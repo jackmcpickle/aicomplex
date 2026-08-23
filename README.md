@@ -53,9 +53,10 @@ Measured across a small corpus:
 | flask | 43 | C | 83% of files in an import cycle |
 | zod | 72 | F | 1717-line median file, 37% duplicated bodies |
 
-The anchors are reasoned, not corpus-derived — see `src/score/anchors.ts`, where
-each one carries its justification. Use the score to compare repos and to track
-one repo over time, not as an absolute measurement.
+The anchors are reasoned, not corpus-derived. Run `aicc --why` to see each
+metric's thresholds and the argument for them, or read `src/score/anchors.ts`.
+Use the score to compare repos and to track one repo over time, not as an
+absolute measurement.
 
 ## What it measures
 

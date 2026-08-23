@@ -21,6 +21,8 @@ const bold = (s: string) => (useColour ? `[1m${s}[0m` : s);
 export type ReportOptions = {
   /** Findings shown per analyzer. */
   detail?: number;
+  /** Print the anchor pair and reasoning behind each metric. */
+  why?: boolean;
 };
 
 export function renderTerminalReport(
@@ -29,7 +31,7 @@ export function renderTerminalReport(
   score: SlopScore,
   options: ReportOptions = {},
 ): string {
-  const { detail = 3 } = options;
+  const { detail = 3, why = false } = options;
   const lines: string[] = [""];
 
   const scored = scoredFiles(index).length;
@@ -57,6 +59,9 @@ export function renderTerminalReport(
   lines.push(...renderScore(score));
 
   const pillarScores = new Map(score.pillars.map((entry) => [entry.pillar, entry.score]));
+  const anchors = new Map(
+    score.pillars.flatMap((entry) => entry.metrics.map((metric) => [metric.analyzer, metric])),
+  );
 
   for (const pillar of PILLARS) {
     const forPillar = results.filter((result) => result.pillar === pillar);
@@ -71,6 +76,18 @@ export function renderTerminalReport(
       lines.push(
         `    ${formatMetric(result.metric).padStart(6)}  ${result.analyzer.padEnd(24)} ${dim(result.unit)}`,
       );
+      const anchor = why ? anchors.get(result.analyzer) : undefined;
+      if (anchor) {
+        lines.push(
+          dim(
+            `           good ≤ ${anchor.good} · bad ≥ ${anchor.bad} · ` +
+              `scored ${anchor.severity.toFixed(0)}/100`,
+          ),
+        );
+        for (const line of wrap(anchor.why, 68)) lines.push(dim(`           ${line}`));
+        lines.push("");
+      }
+
       for (const finding of result.findings.slice(0, detail)) {
         lines.push(dim(`           ${renderFinding(finding)}`));
       }
@@ -92,7 +109,9 @@ export function renderTerminalReport(
   // Saying so is the difference between a useful comparison and a number
   // people mistake for a measurement.
   lines.push(dim("  Thresholds are reasoned, not corpus-derived — best used to compare repos"));
-  lines.push(dim("  and to track one repo over time. See src/score/anchors.ts."));
+  lines.push(
+    dim(why ? "  and to track one repo over time." : "  and to track one repo over time. Run with --why to see the reasoning."),
+  );
   lines.push("");
 
   return lines.join("\n");
@@ -132,4 +151,22 @@ function countByRole(index: CodeIndex, role: string): number {
   let count = 0;
   for (const file of index.files.values()) if (file.role === role) count++;
   return count;
+}
+
+/** Greedy wrap, so a rationale reads as a paragraph rather than one long line. */
+function wrap(text: string, width: number): string[] {
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of text.split(/\s+/)) {
+    if (current === "") current = word;
+    else if (current.length + 1 + word.length <= width) current += ` ${word}`;
+    else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current !== "") lines.push(current);
+
+  return lines;
 }

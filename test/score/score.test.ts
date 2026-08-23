@@ -154,3 +154,27 @@ describe("scoreIndex", () => {
     expect(grades).toEqual(["A", "B", "C", "D", "F"]);
   });
 });
+
+describe("anchor reasoning", () => {
+  it("carries the anchor pair and its rationale with every metric", () => {
+    const [metric] = scoreIndex(indexOfSize(1000), results(13.5)).pillars[0]!.metrics;
+
+    expect(metric).toMatchObject({
+      analyzer: "duplication",
+      good: 2,
+      bad: 25,
+      why: expect.stringContaining("GitClear"),
+    });
+  });
+
+  it("explains every metric it scores", () => {
+    const score = scoreIndex(indexOfSize(1000), results(10));
+
+    for (const pillar of score.pillars) {
+      for (const metric of pillar.metrics) {
+        expect(metric.why.length, metric.analyzer).toBeGreaterThan(20);
+        expect(metric.bad, metric.analyzer).toBeGreaterThan(metric.good);
+      }
+    }
+  });
+});

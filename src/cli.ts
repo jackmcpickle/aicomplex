@@ -23,10 +23,11 @@ program
   .option("--json", "emit machine-readable JSON")
   .option("--detail <n>", "findings to show per metric", (value) => Number.parseInt(value, 10), 3)
   .option("--exclude <glob...>", "additional glob patterns to exclude")
+  .option("--why", "explain the threshold behind each metric")
   .action(
     async (
       target: string,
-      options: { json?: boolean; detail: number; exclude?: string[] },
+      options: { json?: boolean; detail: number; exclude?: string[]; why?: boolean },
     ) => {
       const files = await walk(target, options.exclude ? { exclude: options.exclude } : {});
       const index = await buildIndex(target, files);
@@ -66,7 +67,7 @@ program
         return;
       }
 
-      process.stdout.write(renderTerminalReport(index, results, score, { detail: options.detail }));
+      process.stdout.write(renderTerminalReport(index, results, score, { detail: options.detail, why: options.why === true }));
     },
   );
 
