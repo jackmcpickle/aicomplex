@@ -34,13 +34,13 @@ The report shows how much of the score came from each.
 
 Measured across a small corpus:
 
-| repo  | score |     | notes                                        |
-| ----- | ----- | --- | -------------------------------------------- |
-| aicomplex  | 5     | A   | small, and it eats its own cooking           |
-| cobra | 24    | B   | large files, some duplication                |
-| vite  | 38    | C   | big, cyclic, but low duplication             |
-| flask | 43    | C   | 83% of files in an import cycle              |
-| zod   | 72    | F   | 1717-line median file, 37% duplicated bodies |
+| repo      | score |     | notes                                        |
+| --------- | ----- | --- | -------------------------------------------- |
+| aicomplex | 5     | A   | small, and it eats its own cooking           |
+| cobra     | 24    | B   | large files, some duplication                |
+| vite      | 38    | C   | big, cyclic, but low duplication             |
+| flask     | 43    | C   | 83% of files in an import cycle              |
+| zod       | 72    | F   | 1717-line median file, 37% duplicated bodies |
 
 The anchors are reasoned, not corpus-derived. Run `aicomplex --why` to see each metric's thresholds and the argument for them, or read `src/score/anchors.ts`. Use the score to compare repos and to track one repo over time, not as an absolute measurement.
 
