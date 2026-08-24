@@ -1,6 +1,6 @@
 {
   "name": "aicomplex",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "AI Code Complexity Checker — measure how much slop a codebase is carrying, from the point of view of an AI agent working in it.",
   "keywords": [
     "agents",
