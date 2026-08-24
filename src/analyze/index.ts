@@ -15,7 +15,7 @@ import { symbolCollision } from "./symbol-collision.js";
 import type { Analyzer, AnalyzerResult } from "./types.js";
 
 /**
- * Every analyzer aic3 runs.
+ * Every analyzer aicomplex runs.
  *
  * Order here is the order they appear in the report. An analyzer earns its
  * place by separating good repos from bad ones on the calibration corpus; one

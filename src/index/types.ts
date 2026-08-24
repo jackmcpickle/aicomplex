@@ -125,7 +125,7 @@ export interface CodeIndex {
   /**
    * Line coverage, when an lcov report was found.
    *
-   * Null is the normal case: aic3 is usually pointed at a checkout nobody has
+   * Null is the normal case: aicomplex is usually pointed at a checkout nobody has
    * run tests in. Metrics that need coverage say so rather than treating
    * "unknown" as "zero".
    */

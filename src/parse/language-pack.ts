@@ -1,7 +1,7 @@
 import type { Language } from "../discover/detect.js";
 
 /**
- * Everything aic3 needs to know about one language.
+ * Everything aicomplex needs to know about one language.
  *
  * Queries are held as source strings rather than `.scm` files on disk so that
  * the published package has no runtime asset resolution to get wrong. They are
@@ -83,7 +83,7 @@ export function isSmellKind(value: string): value is SmellKind {
   return SMELL_KIND_SET.has(value);
 }
 
-/** Definition kinds aic3 recognises, in order of specificity. */
+/** Definition kinds aicomplex recognises, in order of specificity. */
 export const DEFINITION_KINDS = [
   "method",
   "function",

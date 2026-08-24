@@ -19,7 +19,7 @@ export const DEFAULT_LCOV_PATH = "coverage/lcov.info";
  * honest source.
  *
  * Returns null when there is no readable lcov file. That is a normal state,
- * not an error: aic3 is usually pointed at a checkout nobody has run tests in.
+ * not an error: aicomplex is usually pointed at a checkout nobody has run tests in.
  */
 export async function readLcov(
   root: string,

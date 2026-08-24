@@ -1,9 +1,9 @@
-# aic3 — AI Code Complexity
+# aicomplex — AI Code Complexity
 
 Measure how much **slop** a codebase is carrying — from the point of view of an AI agent trying to work in it.
 
 ```bash
-npx aic3 scan .
+npx aicomplex scan .
 ```
 
 ## Why
@@ -12,7 +12,7 @@ AI agents write a lot of code, fast. GitClear tracked what that does to a repo a
 
 The result reads fine file-by-file but is structurally bloated, and each agent leaves the repo harder to work in for the next one.
 
-Existing tools don't measure this. Linters find rule violations. "AI detectors" guess whether a file was model-written, which is the wrong question. GitClear measures authoring behaviour from git history, as SaaS. Nothing scores the **current snapshot** for **agent navigability**. That's what aic3 does.
+Existing tools don't measure this. Linters find rule violations. "AI detectors" guess whether a file was model-written, which is the wrong question. GitClear measures authoring behaviour from git history, as SaaS. Nothing scores the **current snapshot** for **agent navigability**. That's what aicomplex does.
 
 ## The Slop Score
 
@@ -36,13 +36,13 @@ Measured across a small corpus:
 
 | repo  | score |     | notes                                        |
 | ----- | ----- | --- | -------------------------------------------- |
-| aic3  | 5     | A   | small, and it eats its own cooking           |
+| aicomplex  | 5     | A   | small, and it eats its own cooking           |
 | cobra | 24    | B   | large files, some duplication                |
 | vite  | 38    | C   | big, cyclic, but low duplication             |
 | flask | 43    | C   | 83% of files in an import cycle              |
 | zod   | 72    | F   | 1717-line median file, 37% duplicated bodies |
 
-The anchors are reasoned, not corpus-derived. Run `aic3 --why` to see each metric's thresholds and the argument for them, or read `src/score/anchors.ts`. Use the score to compare repos and to track one repo over time, not as an absolute measurement.
+The anchors are reasoned, not corpus-derived. Run `aicomplex --why` to see each metric's thresholds and the argument for them, or read `src/score/anchors.ts`. Use the score to compare repos and to track one repo over time, not as an absolute measurement.
 
 ## What it measures
 
@@ -88,12 +88,12 @@ CRAP(f) = complexity² × (1 − coverage)³ + complexity
 
 Coverage is cubed, so a complex function that is well tested is nearly as safe to change as a simple one. Complexity alone isn't risk — complexity you can't verify is.
 
-It needs a coverage report, which aic3 can't produce from source alone:
+It needs a coverage report, which aicomplex can't produce from source alone:
 
 ```bash
 bun coverage                  # writes coverage/lcov.info
-aic3                          # picks it up automatically
-aic3 --lcov path/to/lcov.info # or point at one
+aicomplex                          # picks it up automatically
+aicomplex --lcov path/to/lcov.info # or point at one
 ```
 
 Without a report, `crap` says so rather than reporting a clean zero — unknown coverage is not the same as good coverage.
@@ -102,12 +102,12 @@ Without a report, `crap` says so rather than reporting a clean zero — unknown 
 
 Three thresholds rather than the conventional single cutoff of 30: a codebase where every function sits at 29 and one where they all sit at 6 both score zero against `maxCrap: 30`. Averaging the share over 5, 15 and 30 gives a number that moves with the whole distribution.
 
-aic3's cyclomatic complexity isn't identical to [eslint-plugin-crap](https://www.npmjs.com/package/eslint-plugin-crap)'s. aic3 attributes a nested function's branches to that function rather than its parent, and doesn't count `&&`/`||` as decision points. Expect the same function to score somewhat lower here.
+aicomplex's cyclomatic complexity isn't identical to [eslint-plugin-crap](https://www.npmjs.com/package/eslint-plugin-crap)'s. aicomplex attributes a nested function's branches to that function rather than its parent, and doesn't count `&&`/`||` as decision points. Expect the same function to score somewhat lower here.
 
 ## Example
 
 ```
-$ aic3 scan ./zod
+$ aicomplex scan ./zod
 
   155 scored files · 5523 symbols · 1329 imports · 46347 calls
   not scored: 198 test · 81 benchmark · 14 script · 39 docs
