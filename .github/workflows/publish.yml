@@ -21,6 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,12 +48,27 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Bump version, changelog, and tag
+        id: release
         run: |
           set -euo pipefail
           if ! bunx --bun commit-and-tag-version@13; then
             echo "No releasable commits since last tag; skipping release."
             exit 0
           fi
+          version="$(node -p "require('./package.json').version")"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "released=true" >> "$GITHUB_OUTPUT"
 
       - name: Push release commit and tag
+        if: steps.release.outputs.released == 'true'
         run: git push --follow-tags origin HEAD:main
+
+  cut-release:
+    needs: bump
+    if: needs.bump.outputs.released == 'true'
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: v${{ needs.bump.outputs.version }}
+    permissions:
+      contents: write
+      id-token: write
