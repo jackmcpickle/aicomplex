@@ -1,0 +1,4 @@
+[install]
+ignoreScripts = true
+minimumReleaseAge = 1209600
+registry = "https://registry.npmjs.org"
