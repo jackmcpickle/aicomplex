@@ -91,7 +91,7 @@ Coverage is cubed, so a complex function that is well tested is nearly as safe t
 It needs a coverage report, which aicc can't produce from source alone:
 
 ```bash
-pnpm coverage                 # writes coverage/lcov.info
+bun coverage                  # writes coverage/lcov.info
 aicc                          # picks it up automatically
 aicc --lcov path/to/lcov.info # or point at one
 ```
