@@ -2,7 +2,7 @@ import type { Finding } from "../analyze/findings.js";
 import type { SmellKind } from "../parse/language-pack.js";
 
 /**
- * Every sentence aicc says about a finding.
+ * Every sentence aic3 says about a finding.
  *
  * Kept in one file so the tool's voice can be read top to bottom, and so
  * rewording never touches an analyzer. The switch is exhaustive: a new

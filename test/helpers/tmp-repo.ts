@@ -10,7 +10,7 @@ export async function makeTmpRepo(
   files: Record<string, string>,
   onCleanup: (fn: () => Promise<void>) => void
 ): Promise<string> {
-  const root = await mkdtemp(path.join(tmpdir(), "aicc-test-"));
+  const root = await mkdtemp(path.join(tmpdir(), "aic3-test-"));
   onCleanup(async () => {
     await rm(root, { force: true, recursive: true });
   });

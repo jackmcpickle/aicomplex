@@ -90,7 +90,7 @@ function buildQuery(
     return new Query(grammar, pack[name]);
   } catch (error) {
     throw new Error(
-      `aicc: the "${name}" query for ${pack.language} does not compile against its grammar`,
+      `aic3: the "${name}" query for ${pack.language} does not compile against its grammar`,
       { cause: error }
     );
   }

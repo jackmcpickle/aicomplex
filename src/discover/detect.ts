@@ -29,10 +29,10 @@ const EXTENSION_TO_LANGUAGE: Record<string, Language> = {
   ".tsx": "tsx",
 };
 
-/** Every extension aicc knows how to parse. Used to build the glob patterns. */
+/** Every extension aic3 knows how to parse. Used to build the glob patterns. */
 export const SUPPORTED_EXTENSIONS = Object.keys(EXTENSION_TO_LANGUAGE);
 
-/** Returns the language for a path, or null if aicc cannot parse it. */
+/** Returns the language for a path, or null if aic3 cannot parse it. */
 export function detectLanguage(filePath: string): Language | null {
   const dot = filePath.lastIndexOf(".");
   if (dot <= 0) {

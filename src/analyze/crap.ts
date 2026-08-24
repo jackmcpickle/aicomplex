@@ -14,7 +14,7 @@ import type { Analyzer } from "./types.js";
  * change as a simple one, while an untested complex function is punished
  * hard. Complexity alone is not a risk — complexity you cannot verify is.
  *
- * This is the only metric aicc cannot compute from source alone, so it is
+ * This is the only metric aic3 cannot compute from source alone, so it is
  * reported but deliberately left out of the Slop Score. Two repos' scores stay
  * comparable whether or not either has been tested; see the `change-risk`
  * pillar having no anchors in `src/score/anchors.ts`.
@@ -25,8 +25,8 @@ import type { Analyzer } from "./types.js";
  * averaging them gives a number that moves with the whole distribution: a
  * function over 30 counts in all three bands, one over 5 counts in one.
  *
- * A caveat worth knowing: aicc's cyclomatic complexity is not identical to
- * eslint-plugin-crap's. aicc attributes a nested function's branches to that
+ * A caveat worth knowing: aic3's cyclomatic complexity is not identical to
+ * eslint-plugin-crap's. aic3 attributes a nested function's branches to that
  * function rather than to its parent, and does not count `&&`/`||` as decision
  * points. Expect the same function to score somewhat lower here.
  */

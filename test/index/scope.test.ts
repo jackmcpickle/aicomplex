@@ -60,7 +60,7 @@ describe(scopeIndex, () => {
 /**
  * Both of these used to be hidden: a test importing a file made it look
  * reachable, and a test mentioning a name made it look referenced. Neither is
- * true of the shipped codebase, which is the thing aicc claims to measure.
+ * true of the shipped codebase, which is the thing aic3 claims to measure.
  */
 describe("scoping changes what counts as reachable", () => {
   it("counts a file imported only by a test as an orphan", async () => {

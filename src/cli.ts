@@ -12,7 +12,7 @@ import { scoreIndex } from "./score/score.js";
 const program = new Command();
 
 program
-  .name("aicc")
+  .name("aic3")
   .description(
     "AI Code Complexity — measure how much slop a codebase is carrying, from an AI agent's point of view."
   )
@@ -74,7 +74,7 @@ program
                 ...result,
                 // Findings cross the seam as data; the sentence is derived
                 // here so a consumer can use either without re-implementing
-                // aicc's wording.
+                // aic3's wording.
                 findings: result.findings.map((finding) => ({
                   ...finding,
                   message: renderFinding(finding),

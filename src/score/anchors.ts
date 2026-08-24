@@ -110,7 +110,7 @@ export const PILLAR_WEIGHTS: Record<Pillar, number> = {
   slop: 1,
   // CRAP needs a coverage report, which most scanned checkouts do not have.
   // Letting it into the score would mean a repo with tests and a repo without
-  // are graded on different metrics, and aicc is a comparison tool. It has no
+  // are graded on different metrics, and aic3 is a comparison tool. It has no
   // anchor either, so `severityOf` skips it and this weight is never used.
   "change-risk": 0,
 };

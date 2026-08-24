@@ -18,7 +18,7 @@ import type { Analyzer } from "./types.js";
  *
  * Methods are excluded too. Ten classes implementing `run` is polymorphism
  * working as intended, and an agent finds `Analyzer.run` through the type
- * rather than by grepping the bare name. Counting those punished aicc's own
+ * rather than by grepping the bare name. Counting those punished aic3's own
  * analyzer interface.
  */
 export const symbolCollision: Analyzer = {

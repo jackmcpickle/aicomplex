@@ -1,6 +1,6 @@
 node_modules/
 dist/
-.aicc/
+.aic3/
 *.tsbuildinfo
 .DS_Store
 .env
