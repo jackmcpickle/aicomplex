@@ -11,6 +11,14 @@
     "tree-sitter"
   ],
   "license": "MIT",
+  "homepage": "https://github.com/jackmcpickle/aicomplex#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jackmcpickle/aicomplex.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jackmcpickle/aicomplex/issues"
+  },
   "bin": {
     "aicomplex": "dist/cli.js"
   },
