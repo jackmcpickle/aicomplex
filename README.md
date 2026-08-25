@@ -1,5 +1,7 @@
 # aicomplex — AI Code Complexity
 
+[![npm](https://img.shields.io/npm/v/aicomplex)](https://www.npmjs.com/package/aicomplex) [![CI](https://img.shields.io/github/actions/workflow/status/jackmcpickle/aicomplex/ci.yml?branch=main&label=CI)](https://github.com/jackmcpickle/aicomplex/actions/workflows/ci.yml) [![dependencies](https://img.shields.io/librariesio/release/npm/aicomplex)](package.json) [![License](https://img.shields.io/npm/l/aicomplex)](LICENSE)
+
 Measure how much **slop** a codebase is carrying — from the point of view of an AI agent trying to work in it.
 
 ```bash

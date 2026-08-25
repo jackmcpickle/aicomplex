@@ -12,7 +12,7 @@
   ],
   "license": "MIT",
   "bin": {
-    "aicomplex": "./dist/cli.js"
+    "aicomplex": "dist/cli.js"
   },
   "files": [
     "dist",
